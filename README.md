@@ -1,6 +1,9 @@
-![Architect Logo](imgs/architect_logo.png)
+<p align="center">
+  <img src="imgs/architect_logo.png" height=250/>
+</p>
 
-## Our world is full of systems that are neither purely hardware nor purely software.
+
+## Modern systems are neither purely hardware nor purely software.
 
 These so-called *cyberphysical* systems require new ways of thinking about engineering design. Not only do cyberphysical intertwine hardware and software considerations (think about how closely the control software for a drone depends on the flight hardware), but they often involve massive scale (think about scaling from one drone to a network of hundreds carrying out deliveries).
 
