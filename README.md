@@ -32,7 +32,7 @@ git clone https://github.com/dawsonc/architect
 cd architect
 conda create -n architect_env python=3.9
 conda activate architect_env
-pip install -e .   
+pip install -e .
 pip install -r requirements.txt
 ```
 
