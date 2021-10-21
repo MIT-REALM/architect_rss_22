@@ -1,0 +1,15 @@
+# Code quality
+black
+mypy
+pytest
+flake8
+
+# Standard utility packages
+numpy
+matplotlib
+seaborn
+pandas
+ipykernel
+
+# Learning packages
+torch >= 1.9.0

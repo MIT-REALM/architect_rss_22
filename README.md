@@ -36,4 +36,9 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
+To run in a Jupyter notebook, run
+```bash
+python -m ipykernel install --user --name=architect_env
+```
+
 Architect was developed using Python on Ubuntu 20.04. Other operating systems are not officially supported.
