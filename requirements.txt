@@ -10,6 +10,11 @@ matplotlib
 seaborn
 pandas
 ipykernel
+ipywidgets
+tqdm
 
 # Learning packages
 torch >= 1.9.0
+
+# Autodiff
+jax[cpu]
