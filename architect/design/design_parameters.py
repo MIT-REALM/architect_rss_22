@@ -1,10 +1,15 @@
 """Design parameters are the "controllable" aspects of the design; these are what we
 optimize when do design.
 """
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import jax.numpy as jnp
 import numpy as np
+import scipy.optimize as sciopt
+
+
+# Define a generic type for a constraint
+Constraint = Union[sciopt.LinearConstraint, sciopt.NonlinearConstraint]
 
 
 class DesignParameters(object):
@@ -64,7 +69,7 @@ class DesignParameters(object):
         return np.array(self._values)
 
     @property
-    def bounds(self):
+    def bounds(self) -> List[Optional[Tuple[float, float]]]:
         """Returns the bounds on the design parameters as a list. Each element
         of the list should be None (indicates no bound) or a tuple of (lower, upper)
         bounds.
@@ -74,7 +79,7 @@ class DesignParameters(object):
         return [None] * self.size
 
     @property
-    def constraints(self):
+    def constraints(self) -> List[Constraint]:
         """Returns a list of constraints, either `scipy.optimize.NonlinearConstraint` or
         `scipy.optimize.LinearConstraint` objects.
 
