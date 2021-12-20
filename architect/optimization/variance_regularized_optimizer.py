@@ -34,7 +34,9 @@ class VarianceRegularizedOptimizer(object):
 
         args:
             design_problem: the design problem we seek to optimize
-            variance_weight
+            variance_weight: the weight used to penalize the cost variance in the
+                             objective function
+            sample_size: the number of points used to estimate the mean and variance
         """
         super(VarianceRegularizedOptimizer, self).__init__()
         self.design_problem = design_problem
