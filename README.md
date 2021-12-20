@@ -36,9 +36,13 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
-To run in a Jupyter notebook, run
+To install the environment for use in Jupyter notebooks, run
 ```bash
 python -m ipykernel install --user --name=architect_env
 ```
+
+## Warning: Research code may contain sharp edges!
+
+Architect is under active development as part of research in the [Reliable Autonomy Laboratory](realm.mit.edu) at MIT (REALM). We will aim to release a tagged version to coincide with each new publication and major advance in capabilities, but we currently cannot commit to a stable interface.
 
 Architect was developed using Python on Ubuntu 20.04. Other operating systems are not officially supported.
