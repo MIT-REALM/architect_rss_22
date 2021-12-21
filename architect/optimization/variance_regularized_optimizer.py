@@ -56,6 +56,7 @@ class VarianceRegularizedOptimizer(object):
                sample mean and variance.
             3. Wrap cost with mean and variance.
             4. Automatically differentiate
+            5. Wrap with numpy arrays
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
@@ -109,8 +110,14 @@ class VarianceRegularizedOptimizer(object):
         # Automatically differentiate
         vr_cost_and_grad = jax.value_and_grad(variance_regularized_cost)
 
+        # Wrap in numpy access
+        def vr_cost_and_grad_np(design_params_np: np.ndarray):
+            vr_cost, grad = vr_cost_and_grad(jnp.array(design_params_np))
+
+            return vr_cost.item(), np.array(grad, dtype=np.float64)
+
         # Return the needed functions
-        return vr_cost_and_grad, cost_mean_and_variance
+        return vr_cost_and_grad_np, cost_mean_and_variance
 
     def optimize(
         self, prng_key: PRNGKeyArray
