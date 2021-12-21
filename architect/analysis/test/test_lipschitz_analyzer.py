@@ -61,6 +61,12 @@ def test_LipschitzAnalyzer_analyze():
     key = jax.random.PRNGKey(0)
 
     # Run the analysis
-    gevd_params, gevd_params_se = lipschitz_analyzer.analyze(key)
-    print(gevd_params)
-    print(gevd_params_se)
+    summary, _ = lipschitz_analyzer.analyze(key)
+
+    # Make sure that the estimated upper bound is about right
+    mu = summary["mean"]["mu"]
+    sigma = summary["mean"]["sigma"]
+    xi = summary["mean"]["xi"]
+    assert xi < 0.0, "should be in Weibull regime with upper-bounded support"
+    upper_bound = mu - sigma / xi
+    assert jnp.isclose(upper_bound, 1.0, rtol=1e-3)

@@ -1,54 +1,15 @@
 from typing import Tuple
-import warnings
 
+import arviz as az
 import jax
 import jax.numpy as jnp
 from jax._src.prng import PRNGKeyArray
-import numpy as np
-import scipy.optimize as sciopt
+import pandas as pd
+import pymc3 as pm
+from pymc3.distributions.dist_math import bound
+import theano.tensor as tt
 
 from architect.design import DesignProblem
-
-
-def gevd_neg_loglikelihood(params, x):
-    """Returns the negative log likelihood of the GEVD with params = [mu, sigma, xi]
-    on data x
-
-    args:
-        params: [mu, sigma, xi], corresponding to the location, scale, and shape
-                parameters of the GEVD
-        x: length-m JAX array of the data to fit
-    """
-    # Extract parameters
-    mu, sigma, xi = params
-
-    # Normalize input
-    z = (x - mu) / sigma
-
-    # Get number of data points
-    sample_size = x.shape[0]
-
-    # Compute the log likelihood based on 3.3.2 in Coles.
-    # This proceeds in cases on xi; if xi is too small we need to use the Gumbel
-    # equation
-    if jnp.abs(xi) < 1e-5:
-        ll = -sample_size * jnp.log(sigma) - z.sum() - jnp.exp(z).sum()
-    else:
-        # Otherwise, use the Frechet/Weibull equation. These distributions have bounded
-        # support, so we first need to make sure we're in-bounds
-        out_of_support = jnp.abs(jnp.minimum(1 + xi * z, 0))
-        penalty = 1e3
-        ll = -(penalty * out_of_support).sum()
-
-        # Now, we can add the true negative log likelihood for any points that
-        # are in bounds
-        in_support = 1 + xi * z > 0
-        ll -= sample_size * jnp.log(sigma)
-        ll -= (1 + 1 / xi) * jnp.log(1 + xi * z)[in_support].sum()
-        ll -= ((1 + xi * z) ** (-1 / xi))[in_support].sum()
-
-    # Return the negative
-    return -ll
 
 
 class LipschitzAnalyzer(object):
@@ -76,16 +37,17 @@ class LipschitzAnalyzer(object):
         self.sample_size = sample_size
         self.block_size = block_size
 
-    def analyze(self, prng_key: PRNGKeyArray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def analyze(
+        self, prng_key: PRNGKeyArray
+    ) -> Tuple[pd.DataFrame, az.data.inference_data.InferenceData]:
         """Conduct the variance analysis
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
         returns: a tuple
-            a JAX array with 3 elements containing the [mu, sigma, xi] parameters of
-                the GEVD fit to the maximum sensitivities
-            a JAX array with 1 element containing the standard errors associated with
-                the estimates of the parameters.
+            - a pandas DataFrame containing summary statistics for fitting a GEVD
+              to the observed sensitivities
+            - an arviz InferenceData object including the raw results of the inference
         """
         # Compose the simulator and cost function and vectorize
         def cost(
@@ -131,44 +93,43 @@ class LipschitzAnalyzer(object):
         # slope should now be (sample_size * block_size), reshape
         slope = slope.reshape(self.sample_size, self.block_size)
 
+        # Add some noise to allow the MAP to work. This should not change the estimated
+        # maximum
+        slope -= jax.random.truncated_normal(prng_key, 0.0, 0.1, shape=slope.shape)
+
         # Get the maximum in each block
         block_maxes = slope.max(axis=-1)
 
-        # Fit a generalized extreme value distribution to these data by minimizing the
-        # negative log likelihood.
-        negative_ll_fn = lambda params: gevd_neg_loglikelihood(params, block_maxes)
-        cost_and_grad = jax.value_and_grad(negative_ll_fn)
+        # Fit a generalized extreme value distribution to these data using PyMC3
+        # (a Bayesian analysis using MCMC for inference).
+        # Source for snippet:
+        # https://discourse.pymc.io/t/generalized-extreme-value-analysis-in-pymc3/7433
+        with pm.Model() as model_gevd:  # noqa: F841
+            mu = pm.Normal("mu", mu=3, sigma=10)
+            sigma = pm.Normal("sigma", mu=0.24, sigma=10)
+            xi = pm.Normal("xi", mu=0, sigma=10)
 
-        def cost_and_grad_np(params_np):
-            cost, grad = cost_and_grad(jnp.array(params_np))
-            print("params")
-            print(params_np)
-            print(f"cost: {cost}")
-            return cost.item(), np.array(grad, dtype=np.float64)
+            def gev_logp(value):
+                scaled = (value - mu) / sigma
+                logp = -(
+                    tt.log(sigma)
+                    + ((xi + 1) / xi) * tt.log1p(xi * scaled)
+                    + (1 + xi * scaled) ** (-1 / xi)
+                )
+                alpha = mu - sigma / xi
+                bounds = tt.switch(xi > 0, xi > alpha, xi < alpha)
+                return bound(logp, bounds, xi != 0)
 
-        bounds = (
-            (-np.inf, np.inf),  # no bounds on mu
-            (1e-3, np.inf),  # sigma must be positive
-            (-0.5, np.inf),  # MLE needs xi > -1.0 to be valid, and this is a pretty
-            # reasonable assumption in practice according to Coles
-        )
-        initial_guess = np.array([1.0, 1.0, 0.1])
-        result = sciopt.minimize(
-            cost_and_grad_np,
-            initial_guess,
-            method="L-BFGS-B",
-            bounds=bounds,
-            jac=True,
-            options={"disp": True},
-        )
+            gevd = pm.DensityDist("gevd", gev_logp, observed=block_maxes)  # noqa: F841
+            step = pm.NUTS()
+            idata = pm.sample(
+                10000,
+                chains=4,
+                tune=3000,
+                step=step,
+                start={"mu": 1.0, "sigma": 1.0, "xi": -0.1},
+                return_inferencedata=True,
+                progressbar=True,
+            )
 
-        if not result.success:
-            warnings.warn("GVED MLE estimation failure!" + result.message)
-
-        # Extract the parameters, then construct the observed information matrix
-        # so we can estimate the error in these parameters
-        params = jnp.array(result.x)
-        hessian = jax.hessian(negative_ll_fn)(params)
-        param_standard_error = jnp.sqrt(jnp.diag(jnp.linalg.inv(hessian)))
-
-        return params, param_standard_error
+        return az.summary(idata), idata
