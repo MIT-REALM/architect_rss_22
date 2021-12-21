@@ -34,16 +34,18 @@ def gevd_neg_loglikelihood(params, x):
     if jnp.abs(xi) < 1e-5:
         ll = -sample_size * jnp.log(sigma) - z.sum() - jnp.exp(z).sum()
     else:
-        # Otherwise, use the Frechet/Weibull equation
-        ll = -sample_size * jnp.log(sigma) - (1 + 1 / xi) * jnp.log(1 + xi * z).sum()
-        ll -= ((1 + xi * z) ** (-1 / xi)).sum()
+        # Otherwise, use the Frechet/Weibull equation. These distributions have bounded
+        # support, so we first need to make sure we're in-bounds
+        out_of_support = jnp.abs(jnp.minimum(1 + xi * z, 0))
+        penalty = 1e3
+        ll = -(penalty * out_of_support).sum()
 
-        # When xi is non-zero, the GEVD has bounded support. Theoretically, if the data
-        # fall outside of this support it makes the log likelihood -infinity, but in
-        # practice we'll just penalize it with a large penalty.
-        out_of_support = jnp.maximum(1 + xi * z, 0)
-        penalty = 1e5
-        ll -= (penalty * out_of_support).sum()
+        # Now, we can add the true negative log likelihood for any points that
+        # are in bounds
+        in_support = 1 + xi * z > 0
+        ll -= sample_size * jnp.log(sigma)
+        ll -= (1 + 1 / xi) * jnp.log(1 + xi * z)[in_support].sum()
+        ll -= ((1 + xi * z) ** (-1 / xi))[in_support].sum()
 
     # Return the negative
     return -ll
@@ -118,10 +120,12 @@ class LipschitzAnalyzer(object):
         )
 
         # Get the change in cost for each pair
-        abs_cost_diff = (sample_1_cost - sample_2_cost).abs()
+        abs_cost_diff = jnp.abs(sample_1_cost - sample_2_cost)
 
         # And compute the slope
-        abs_param_diff = (exogenous_sample_1 - exogenous_sample_2).abs()
+        abs_param_diff = jnp.linalg.norm(
+            exogenous_sample_1 - exogenous_sample_2, axis=-1
+        )
         slope = abs_cost_diff / abs_param_diff
 
         # slope should now be (sample_size * block_size), reshape
@@ -134,19 +138,32 @@ class LipschitzAnalyzer(object):
         # negative log likelihood.
         negative_ll_fn = lambda params: gevd_neg_loglikelihood(params, block_maxes)
         cost_and_grad = jax.value_and_grad(negative_ll_fn)
+
+        def cost_and_grad_np(params_np):
+            cost, grad = cost_and_grad(jnp.array(params_np))
+            print("params")
+            print(params_np)
+            print(f"cost: {cost}")
+            return cost.item(), np.array(grad, dtype=np.float64)
+
         bounds = (
-            None,  # no bounds on mu
-            (0.0, np.inf),  # sigma must be positive
-            (-1.0, np.inf),  # MLE needs xi > -1.0 to be valid, and this is a pretty
+            (-np.inf, np.inf),  # no bounds on mu
+            (1e-3, np.inf),  # sigma must be positive
+            (-0.5, np.inf),  # MLE needs xi > -1.0 to be valid, and this is a pretty
             # reasonable assumption in practice according to Coles
         )
         initial_guess = np.array([1.0, 1.0, 0.1])
         result = sciopt.minimize(
-            cost_and_grad, initial_guess, method="L-BFGS-B", bounds=bounds, jac=True
+            cost_and_grad_np,
+            initial_guess,
+            method="L-BFGS-B",
+            bounds=bounds,
+            jac=True,
+            options={"disp": True},
         )
 
         if not result.success:
-            warnings.warn("GVED MLE estimation failure!\n" + result.message)
+            warnings.warn("GVED MLE estimation failure!" + result.message)
 
         # Extract the parameters, then construct the observed information matrix
         # so we can estimate the error in these parameters
