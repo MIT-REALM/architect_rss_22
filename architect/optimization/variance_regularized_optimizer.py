@@ -5,6 +5,7 @@ from typing import Callable, Tuple
 
 import jax
 import jax.numpy as jnp
+from jax._src.prng import PRNGKeyArray
 import numpy as np
 import scipy.optimize as sciopt
 
@@ -44,7 +45,7 @@ class VarianceRegularizedOptimizer(object):
         self.sample_size = sample_size
 
     def compile_cost_fn(
-        self, prng_key: jnp.ndarray
+        self, prng_key: PRNGKeyArray
     ) -> Tuple[
         Callable[[np.ndarray], Tuple[float, np.ndarray]],
         Callable[[jnp.ndarray], Tuple[jnp.ndarray, jnp.ndarray]],
@@ -55,13 +56,12 @@ class VarianceRegularizedOptimizer(object):
                sample mean and variance.
             3. Wrap cost with mean and variance.
             4. Automatically differentiate
-            5. Wrap JAX functions in a numpy-compatible wrapper
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
         returns: two functions in a Tuple
-            - a function that takes a numpy array of values for the design parameters
-              and returns a tuple of variance-regularized cost and the gradient of that
+            - a function that takes an array of values for the design parameters and
+              returns a tuple of variance-regularized cost and the gradient of that
               cost w.r.t. the design parameters.
             - a function that takes a JAX array of values for the design parameters
               and returns a tuple of sample mean and variance of the cost
@@ -109,19 +109,11 @@ class VarianceRegularizedOptimizer(object):
         # Automatically differentiate
         vr_cost_and_grad = jax.value_and_grad(variance_regularized_cost)
 
-        # Wrap vr_cost_and_grad to take a numpy array and return a scalar cost
-        def vr_cost_and_grad_wrapper(
-            design_params_np: np.ndarray,
-        ) -> Tuple[float, np.ndarray]:
-            design_params = jnp.array(design_params_np)
-            cost, grad = vr_cost_and_grad(design_params)
-            return cost.item(), np.array(grad)
-
         # Return the needed functions
-        return vr_cost_and_grad_wrapper, cost_mean_and_variance
+        return vr_cost_and_grad, cost_mean_and_variance
 
     def optimize(
-        self, prng_key: jnp.ndarray
+        self, prng_key: PRNGKeyArray
     ) -> Tuple[bool, str, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Optimize the design problem, starting with the initial values stored in
         self.design_problem.design_params.

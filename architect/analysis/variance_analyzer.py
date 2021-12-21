@@ -4,6 +4,7 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
+from jax._src.prng import PRNGKeyArray
 
 from architect.design import DesignProblem
 
@@ -23,7 +24,7 @@ class VarianceAnalyzer(object):
         self.design_problem = design_problem
         self.sample_size = sample_size
 
-    def analyze(self, prng_key: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def analyze(self, prng_key: PRNGKeyArray) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """Conduct the variance analysis
 
         args:

@@ -5,6 +5,7 @@ from typing import Optional
 
 import jax
 import jax.numpy as jnp
+from jax._src.prng import PRNGKeyArray
 
 
 class ExogenousParameters(object):
@@ -44,7 +45,7 @@ class ExogenousParameters(object):
         self.names = names
 
     def sample(
-        self, prng_key: jnp.ndarray, batch_size: Optional[int] = None
+        self, prng_key: PRNGKeyArray, batch_size: Optional[int] = None
     ) -> jnp.ndarray:
         """Sample values for these exogenous parameters from this distribution.
 
