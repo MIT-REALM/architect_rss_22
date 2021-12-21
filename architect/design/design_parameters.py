@@ -58,7 +58,7 @@ class DesignParameters(object):
         args:
             new_values: the array of new values
         """
-        self._values = self._values.set(new_values)
+        self._values = new_values
 
     def get_values(self) -> jnp.ndarray:
         """Return the values of these design parameters."""
