@@ -56,6 +56,6 @@ class VarianceAnalyzer(object):
 
         # Get the mean and variance
         sample_cost_mean = sample_cost.mean()
-        sample_cost_var = sample_cost.var()
+        sample_cost_var = sample_cost.var(ddof=1)
 
         return sample_cost_mean, sample_cost_var

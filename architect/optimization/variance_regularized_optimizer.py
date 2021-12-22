@@ -97,7 +97,7 @@ class VarianceRegularizedOptimizer(object):
 
             # Compute the mean and variance of the sample cost
             sample_mean = sample_cost.mean()
-            sample_variance = sample_cost.var()
+            sample_variance = sample_cost.var(ddof=1)
 
             return sample_mean, sample_variance
 
