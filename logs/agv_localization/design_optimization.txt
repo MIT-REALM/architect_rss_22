@@ -1,0 +1,88 @@
+WARNING:absl:No GPU/TPU found, falling back to CPU. (Set TF_CPP_MIN_LOG_LEVEL=0 and rerun for more info.)
+==================================
+Success? True! Message: CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH
+----------------------------------
+Optimal design parameters:
+[ 2.535058    0.09306894 -1.6945883  -1.          0.         -0.8280163 ]
+Optimal mean cost: 3.144991874694824
+Optimal cost variance: 0.11605171114206314
+
+ Warning:  more than 10 function and gradient
+   evaluations in the last line search.  Termination
+   may possibly be caused by a bad search direction.
+RUNNING THE L-BFGS-B CODE
+
+           * * *
+
+Machine precision = 2.220D-16
+ N =            6     M =           10
+
+At X0         0 variables are exactly at the bounds
+
+At iterate    0    f=  3.93856D+00    |proj g|=  5.60421D+00
+
+At iterate    1    f=  3.91621D+00    |proj g|=  1.11672D+00
+
+At iterate    2    f=  3.89177D+00    |proj g|=  3.12207D+00
+
+At iterate    3    f=  3.89173D+00    |proj g|=  3.28320D+00
+
+At iterate    4    f=  3.88352D+00    |proj g|=  1.94462D+00
+
+At iterate    5    f=  3.80123D+00    |proj g|=  8.63186D-01
+
+At iterate    6    f=  3.60798D+00    |proj g|=  2.88310D+00
+
+At iterate    7    f=  3.37100D+00    |proj g|=  5.39822D+00
+
+At iterate    8    f=  3.32961D+00    |proj g|=  1.16953D+01
+
+At iterate    9    f=  3.30137D+00    |proj g|=  1.25281D+01
+
+At iterate   10    f=  3.24357D+00    |proj g|=  1.39557D+00
+
+At iterate   11    f=  3.20819D+00    |proj g|=  3.98090D+00
+
+At iterate   12    f=  3.20712D+00    |proj g|=  1.96012D+00
+
+At iterate   13    f=  3.17564D+00    |proj g|=  4.92728D-01
+  ys=-2.002E-04  -gs= 3.129E-02 BFGS update SKIPPED
+
+At iterate   14    f=  3.16556D+00    |proj g|=  1.26789D+00
+
+At iterate   15    f=  3.16225D+00    |proj g|=  2.81486D+00
+
+At iterate   16    f=  3.16224D+00    |proj g|=  3.81583D+00
+
+At iterate   17    f=  3.16140D+00    |proj g|=  6.29169D-01
+
+At iterate   18    f=  3.15879D+00    |proj g|=  3.17789D-01
+  ys=-1.440E-04  -gs= 6.829E-04 BFGS update SKIPPED
+
+At iterate   19    f=  3.15733D+00    |proj g|=  2.02186D+00
+
+At iterate   20    f=  3.15673D+00    |proj g|=  3.53256D+00
+
+At iterate   21    f=  3.15660D+00    |proj g|=  2.84261D+00
+
+At iterate   22    f=  3.15660D+00    |proj g|=  2.83446D+00
+
+At iterate   23    f=  3.15660D+00    |proj g|=  2.83446D+00
+
+           * * *
+
+Tit   = total number of iterations
+Tnf   = total number of function evaluations
+Tnint = total number of segments explored during Cauchy searches
+Skip  = number of BFGS updates skipped
+Nact  = number of active bounds at final generalized Cauchy point
+Projg = norm of the final projected gradient
+F     = final function value
+
+           * * *
+
+   N    Tit     Tnf  Tnint  Skip  Nact     Projg        F
+    6     23     78     23     2     2   2.834D+00   3.157D+00
+  F =   3.1565968990325928     
+
+CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH             
