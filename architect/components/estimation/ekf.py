@@ -3,53 +3,38 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
-import jax.scipy
-
-from ..dynamics.types import (
-    DiscreteTimeDynamicsCallable,
-    DiscreteTimeDynamicsJacobianCallable,
-)
 
 
 @jax.jit
-def dt_ekf_predict(
-    state_mean: jnp.ndarray,
+def dt_ekf_predict_covariance(
     state_covariance: jnp.ndarray,
-    control_input: jnp.ndarray,
-    dynamics_fn: DiscreteTimeDynamicsCallable,
-    dynamics_jac_fn: DiscreteTimeDynamicsJacobianCallable,
+    dynamics_jac: jnp.ndarray,
     actuation_noise_covariance: jnp.ndarray,
     dt,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Compute the one-step EKF prediction for discrete-time
+) -> jnp.ndarray:
+    """Compute the one-step EKF prediction for discrete-time to update the state estimate
+    covariance. Does not update the estimate itself.
 
     args:
-        state_mean: the (n_states,) array containing the current estimate of state
         state_covariance: the (n_states, n_states) matrix containing the covariance of
                           the current state estimate error
-        control_input: the (n_controls,) array containing the control input at this step
-        dynamics_fn: a function taking current state, control input, noise, and a
-                     timestep and returning the next state
+        dynamics_jac: the (n_states, n_states) jacobian matrix for the dynamics
         actuation_noise_covariance: the (n_states, n_states) matrix containing the
                                     covariance of the state update noise
         dt: the length of the discrete-time update (scalar)
     returns:
-        a tuple of the new mean state estimate and error covariance
+        the new state error covariance
     """
-    # Update the mean (dynamics with zero noise)
-    zero_noise = jnp.zeros(state_mean.shape)
-    next_state_mean = dynamics_fn(state_mean, control_input, zero_noise, dt)
-
     # Update the covariance
-    F = dynamics_jac_fn(state_mean, control_input, dt)
+    F = dynamics_jac
     next_state_covariance = (
         F @ state_covariance @ jnp.transpose(F) + actuation_noise_covariance
     )
 
-    return next_state_mean, next_state_covariance
+    return next_state_covariance
 
 
-@jax.jit
+# @jax.jit
 def dt_ekf_update(
     state_mean: jnp.ndarray,
     state_covariance: jnp.ndarray,

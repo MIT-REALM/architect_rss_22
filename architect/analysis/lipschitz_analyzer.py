@@ -49,14 +49,11 @@ class LipschitzAnalyzer(object):
               to the observed sensitivities
             - an arviz InferenceData object including the raw results of the inference
         """
-        # Compose the simulator and cost function and vectorize
+        # Wrap the cost function and vectorize
         def cost(
             design_params: jnp.ndarray, exogenous_params: jnp.ndarray
         ) -> jnp.ndarray:
-            simulation_trace = self.design_problem.simulator(
-                design_params, exogenous_params
-            )
-            return self.design_problem.cost_fn(simulation_trace)
+            return self.design_problem.cost_fn(design_params, exogenous_params)
 
         costv = jax.vmap(cost, (None, 0))
 

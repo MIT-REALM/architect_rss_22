@@ -12,7 +12,7 @@ simulation. These JAX arrays should have time as the first dimension
 Simulator = Callable[[jnp.ndarray, jnp.ndarray], Tuple[jnp.ndarray, ...]]
 
 """
-The cost function takes the output of the simulator and returns a scalar value (in a
-1-element JAX array).
+The cost function takes the design and exogenous parameter values and returns a scalar
+cost (in a 1-element JAX array).
 """
-CostFunction = Callable[[Tuple[jnp.ndarray, ...]], jnp.ndarray]
+CostFunction = Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]

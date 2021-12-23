@@ -9,14 +9,11 @@ def test_DesignProblem_init():
     dp = DesignParameters(n)
     ep = ExogenousParameters(m)
 
-    # Create a simple simulator that passes through the design params and a cost
-    # function that computes the squared 2-norm of the design params
-    def simulator(dp, ep):
-        return dp
+    # Create a cost function that computes the squared 2-norm of the design params
 
-    def cost_fn(trace):
-        return (trace ** 2).sum()
+    def cost_fn(dp, ep):
+        return (dp ** 2).sum()
 
     # Create the design problem and make sure it initialized
-    problem = DesignProblem(dp, ep, simulator, cost_fn)
+    problem = DesignProblem(dp, ep, cost_fn, cost_fn)
     assert problem is not None

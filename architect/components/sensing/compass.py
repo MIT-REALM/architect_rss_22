@@ -22,13 +22,12 @@ def compass_measurements(
     # Add the observation noise
     observations = true_heading + observation_noise
 
-    return observations
+    return observations.reshape(1)
 
 
 @jax.jit
 def compass_measurement_lin(
     estimated_heading: jnp.ndarray,
-    measurements: jnp.ndarray,
 ) -> jnp.ndarray:
     """
     Compute the linearized observation matrix for the compass measurement.

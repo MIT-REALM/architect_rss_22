@@ -1,9 +1,7 @@
 """Dynamics information for a discrete-time Dubins car"""
-import jax
 import jax.numpy as jnp
 
 
-@jax.jit
 def dubins_next_state(
     current_state: jnp.ndarray,
     control_input: jnp.ndarray,
@@ -35,7 +33,6 @@ def dubins_next_state(
     return next_state
 
 
-@jax.jit
 def dubins_linearized_dynamics(
     current_state: jnp.ndarray,
     control_input: jnp.ndarray,

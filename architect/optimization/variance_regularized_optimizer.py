@@ -51,12 +51,11 @@ class VarianceRegularizedOptimizer(object):
         Callable[[jnp.ndarray], Tuple[jnp.ndarray, jnp.ndarray]],
     ]:
         """Compile the variance-regularized cost function. This involves:
-            1. Compose the simulator and cost function
-            2. Vectorize w.r.t. exogenous parameters to enable efficient computation of
+            1. Vectorize w.r.t. exogenous parameters to enable efficient computation of
                sample mean and variance.
-            3. Wrap cost with mean and variance.
-            4. Automatically differentiate
-            5. Wrap with numpy arrays
+            2. Wrap cost with mean and variance.
+            3. Automatically differentiate
+            4. Wrap with numpy arrays
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
@@ -67,14 +66,11 @@ class VarianceRegularizedOptimizer(object):
             - a function that takes a JAX array of values for the design parameters
               and returns a tuple of sample mean and variance of the cost
         """
-        # Compose the simulator and cost function
+        # Wrap the cost function
         def cost(
             design_params: jnp.ndarray, exogenous_params: jnp.ndarray
         ) -> jnp.ndarray:
-            simulation_trace = self.design_problem.simulator(
-                design_params, exogenous_params
-            )
-            return self.design_problem.cost_fn(simulation_trace)
+            return self.design_problem.cost_fn(design_params, exogenous_params)
 
         # Vectorize the cost function with respect to the exogenous parameters
         # None indicates that we do not vectorize wrt design parameters
@@ -120,13 +116,14 @@ class VarianceRegularizedOptimizer(object):
         return vr_cost_and_grad_np, cost_mean_and_variance
 
     def optimize(
-        self, prng_key: PRNGKeyArray
+        self, prng_key: PRNGKeyArray, disp: bool = False
     ) -> Tuple[bool, str, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Optimize the design problem, starting with the initial values stored in
         self.design_problem.design_params.
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
+            disp: if True, display optimization progress
         returns:
             a boolean that is true if the optimization suceeded,
             a string containing the termination message from the optimization engine,
@@ -161,6 +158,7 @@ class VarianceRegularizedOptimizer(object):
             jac=True,  # f returns both cost and gradient in a tuple
             bounds=bounds,
             constraints=constraints,
+            options={"disp": disp},
         )
 
         # Extract the solution and get the cost and variance at that point

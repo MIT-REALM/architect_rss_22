@@ -27,10 +27,11 @@ def create_test_design_problem():
     def simulator(dp, ep):
         return jnp.concatenate([dp, ep])
 
-    def cost_fn(trace):
+    def cost_fn(dp, ep):
+        trace = simulator(dp, ep)
         return (trace[0] ** 2).sum() + jnp.abs(trace[-1])
 
-    problem = DesignProblem(dp, ep, simulator, cost_fn)
+    problem = DesignProblem(dp, ep, cost_fn, simulator)
 
     return problem
 

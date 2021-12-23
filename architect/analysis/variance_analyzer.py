@@ -33,14 +33,11 @@ class VarianceAnalyzer(object):
             a JAX array with 1 element containing the mean of the cost
             a JAX array with 1 element containing the variance of the cost
         """
-        # Compose the simulator and cost function and vectorize
+        # Wrap the cost function and vectorize
         def cost(
             design_params: jnp.ndarray, exogenous_params: jnp.ndarray
         ) -> jnp.ndarray:
-            simulation_trace = self.design_problem.simulator(
-                design_params, exogenous_params
-            )
-            return self.design_problem.cost_fn(simulation_trace)
+            return self.design_problem.cost_fn(design_params, exogenous_params)
 
         costv = jax.vmap(cost, (None, 0))
 

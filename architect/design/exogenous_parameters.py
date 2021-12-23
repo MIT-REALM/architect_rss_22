@@ -41,7 +41,7 @@ class ExogenousParameters(object):
 
         # Specify default behavior
         if names is None:
-            names = [f"theta_{i}" for i in range(self.size)]
+            names = [f"phi_{i}" for i in range(self.size)]
         self.names = names
 
     def sample(

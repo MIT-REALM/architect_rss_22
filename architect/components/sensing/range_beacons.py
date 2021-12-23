@@ -23,7 +23,7 @@ def beacon_range_measurements(
     """
     # Compute the squared range (this is analogous to measuring e.g. the decay in a
     # radio or acoustic signal).
-    ranges = ((measurement_xy - beacon_locations_xy) ** 2).sum(axis=-1) + 0.01
+    ranges = ((measurement_xy - beacon_locations_xy) ** 2).sum(axis=-1)
 
     # Add the observation noise
     observations = ranges + observation_noise
