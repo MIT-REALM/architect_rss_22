@@ -12,27 +12,27 @@ import theano.tensor as tt
 from architect.design import DesignProblem
 
 
-class LipschitzAnalyzer(object):
-    """LipschitzAnalyzer conducts a statistical analysis of the design's sensitivity to
-    variantion in the exogenous parameters. This is related to estimating the Lipschitz
-    constant, but does not require that the performance be Lipschitz (the analysis will
-    tell us whether it is likely Lipschitz or not)."""
+class WorstCaseCostAnalyzer(object):
+    """
+    WorstCaseCostAnalyzer conducts a statistical analysis of the design's worst case
+    performance
+    """
 
     def __init__(
         self, design_problem: DesignProblem, sample_size: int, block_size: int
     ):
-        """Initialize a LipschitzAnalyzer.
+        """Initialize a WorstCaseCostAnalyzer.
 
         args:
             design_problem: the design problem we seek to analyze
             sample_size: the number of blocks used to estimate the distribution of
-                         the maximum sensitivity. Larger sample sizes will decrease
+                         the maximum cost. Larger sample sizes will decrease
                          the variance of the estimate.
             block_size: the number of samples used to compute the max in each block.
                         Larger block sizes will decrease the variance of the estimate,
                         but will be more expensive to compute.
         """
-        super(LipschitzAnalyzer, self).__init__()
+        super(WorstCaseCostAnalyzer, self).__init__()
         self.design_problem = design_problem
         self.sample_size = sample_size
         self.block_size = block_size
@@ -40,7 +40,7 @@ class LipschitzAnalyzer(object):
     def analyze(
         self, prng_key: PRNGKeyArray
     ) -> Tuple[pd.DataFrame, az.data.inference_data.InferenceData]:
-        """Conduct the variance analysis
+        """Conduct the analysis
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
@@ -62,48 +62,27 @@ class LipschitzAnalyzer(object):
 
         # This starts by sampling two sets of exogenous parameters
         prng_key, prng_subkey = jax.random.split(prng_key)
-        exogenous_sample_1 = self.design_problem.exogenous_params.sample(
-            prng_subkey, self.sample_size * self.block_size
-        )
-        prng_key, prng_subkey = jax.random.split(prng_key)
-        exogenous_sample_2 = self.design_problem.exogenous_params.sample(
+        exogenous_sample = self.design_problem.exogenous_params.sample(
             prng_subkey, self.sample_size * self.block_size
         )
 
         # Get the costs on each sample
-        sample_1_cost = costv(
-            self.design_problem.design_params.get_values(), exogenous_sample_1
+        sample_cost = costv(
+            self.design_problem.design_params.get_values(), exogenous_sample
         )
-        sample_2_cost = costv(
-            self.design_problem.design_params.get_values(), exogenous_sample_2
-        )
-
-        # Get the change in cost for each pair
-        abs_cost_diff = jnp.abs(sample_1_cost - sample_2_cost)
-
-        # And compute the slope
-        abs_param_diff = jnp.linalg.norm(
-            exogenous_sample_1 - exogenous_sample_2, axis=-1
-        )
-        slope = abs_cost_diff / abs_param_diff
-
-        # slope should now be (sample_size * block_size), reshape
-        slope = slope.reshape(self.sample_size, self.block_size)
-
-        # Add some noise to allow the MAP to work. This should not change the estimated
-        # maximum
-        slope -= jax.random.truncated_normal(prng_key, 0.0, 0.1, shape=slope.shape)
+        # Reshape to be (sample_size, block_size) instead of (sample_size * block_size)
+        sample_cost = sample_cost.reshape(self.sample_size, self.block_size)
 
         # Get the maximum in each block
-        block_maxes = slope.max(axis=-1)
+        block_maxes = sample_cost.max(axis=-1)
 
         # Fit a generalized extreme value distribution to these data using PyMC3
         # (a Bayesian analysis using MCMC for inference).
         # Source for snippet:
         # https://discourse.pymc.io/t/generalized-extreme-value-analysis-in-pymc3/7433
         with pm.Model() as model_gevd:  # noqa: F841
-            mu = pm.Normal("mu", mu=3, sigma=10)
-            sigma = pm.Normal("sigma", mu=0.24, sigma=10)
+            mu = pm.Normal("mu", mu=0, sigma=10)
+            sigma = pm.Normal("sigma", mu=1.0, sigma=10)
             xi = pm.Normal("xi", mu=0, sigma=10)
 
             def gev_logp(value):

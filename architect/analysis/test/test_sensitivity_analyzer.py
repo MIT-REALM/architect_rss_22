@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 
 from architect.design import DesignProblem, DesignParameters, ExogenousParameters
-from architect.analysis import LipschitzAnalyzer
+from architect.analysis import SensitivityAnalyzer
 
 
 def create_test_design_problem():
@@ -36,33 +36,33 @@ def create_test_design_problem():
     return problem
 
 
-def test_LipschitzAnalyzer_init():
-    """Test initializing a LipschitzAnalyzer"""
+def test_SensitivityAnalyzer_init():
+    """Test initializing a SensitivityAnalyzer"""
     # Get the test problem
     problem = create_test_design_problem()
 
     # Initialize and make sure it worked
     sample_size = 100
     block_size = 50
-    lipschitz_analyzer = LipschitzAnalyzer(problem, sample_size, block_size)
-    assert lipschitz_analyzer is not None
+    sensitivity_analyzer = SensitivityAnalyzer(problem, sample_size, block_size)
+    assert sensitivity_analyzer is not None
 
 
-def test_LipschitzAnalyzer_analyze():
-    """Test using a LipschitzAnalyzer to analyze variance"""
+def test_SensitivityAnalyzer_analyze():
+    """Test using a SensitivityAnalyzer to analyze variance"""
     # Get the test problem
     problem = create_test_design_problem()
 
     # Initialize the analyzer
     sample_size = 100
     block_size = 50
-    lipschitz_analyzer = LipschitzAnalyzer(problem, sample_size, block_size)
+    sensitivity_analyzer = SensitivityAnalyzer(problem, sample_size, block_size)
 
     # Get a PRNG key
     key = jax.random.PRNGKey(0)
 
     # Run the analysis
-    summary, _ = lipschitz_analyzer.analyze(key)
+    summary, _ = sensitivity_analyzer.analyze(key)
 
     # Make sure that the estimated upper bound is about right
     mu = summary["mean"]["mu"]
