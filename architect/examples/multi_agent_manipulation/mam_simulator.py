@@ -450,6 +450,11 @@ if __name__ == "__main__":
     # fig.colorbar(contours)
     # plt.show()
 
+    # TODO: implement plotting utilities
+    # TODO: check box trajectory alone
+    # TODO: check 1 turtle + box interaction
+    # TODO: check 2 turtle + box interaction
+
     # Test box and 1 turtlebot
     T = 1
     dt = 0.01
