@@ -1,12 +1,22 @@
 """Define a simulator for the multi-agent manipulation (MAM) task"""
 from functools import partial
-from typing import Tuple
+from typing import List, Tuple
 
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 
 from architect.components.geometry.transforms_2d import rotation_matrix_2d
+
+
+@jax.jit
+def softnorm(x):
+    """Compute the 2-norm, but if x is too small replace it with the squared 2-norm
+    to make sure it's differentiable. This function is continuous and has a derivative
+    that is defined everywhere, but its derivative is discontinuous.
+    """
+    eps = 1e-5
+    scaled_square = lambda x: (eps * (x / eps) ** 2).sum()
+    return jax.lax.cond(jnp.linalg.norm(x) >= eps, jnp.linalg.norm, scaled_square, x)
 
 
 @jax.jit
@@ -36,20 +46,26 @@ def calc_ground_wrench_on_box(
     c = mu / psi_s  # coefficient of tangential velocity in sticking friction
 
     # Compute translational friction
-    psi = jnp.linalg.norm(v_WB + 1e-3)  # Magnitude of tangential velocity
-    sliding_direction = psi / (jnp.linalg.norm(psi + 1e-3) + 1e-3)
+    psi = softnorm(v_WB)  # Magnitude of tangential velocity
+    norm_factor = (psi < 1e-5) * 1.0 + (psi >= 1e-5) * psi
+    sliding_direction = v_WB / norm_factor
     sticking = psi <= psi_s
     slipping = jnp.logical_not(sticking)
-    friction_coefficient = sticking * c * psi + slipping * mu * sliding_direction
+    friction_coefficient = (
+        sticking * c * psi * sliding_direction + slipping * mu * sliding_direction
+    )
     translational_friction_force = -friction_coefficient * f_normal
 
     # Compute rotational friction (this is an approximation)
-    psi = jnp.linalg.norm(w_WB + 1e-3)  # Magnitude of angular velocity
+    psi = softnorm(w_WB)  # Magnitude of angular velocity
     sliding_direction = jnp.sign(w_WB)
     sticking = psi <= psi_s
     slipping = jnp.logical_not(sticking)
-    friction_coefficient = sticking * c * psi + slipping * mu * sliding_direction
-    rotational_friction_torque = -friction_coefficient * f_normal
+    friction_coefficient = (
+        sticking * c * psi * sliding_direction + slipping * mu * sliding_direction
+    )
+    # Make rotational friction less than translational
+    rotational_friction_torque = -0.1 * friction_coefficient * f_normal
 
     ground_wrench_on_box = jnp.zeros((3,))
     ground_wrench_on_box = ground_wrench_on_box.at[:2].set(translational_friction_force)
@@ -96,12 +112,12 @@ def box_turtle_signed_distance(
 
     # phi = signed distance.
     phi = jnp.minimum(0.0, jnp.maximum(x_dist, y_dist))
-    phi = phi + jnp.linalg.norm(
+    phi = phi + softnorm(
         jnp.maximum(jnp.array([1e-3, 1e-3]), jnp.array([x_dist, y_dist]))
     )
 
     # Subtract the radius of the turtlebot
-    phi -= chassis_radius
+    phi -= turtle_radius
 
     return phi
 
@@ -132,7 +148,7 @@ def calc_box_turtle_contact_wrench(
     # Define constants
     psi_s = 0.3  # tangential velocity at which slipping occurs
     c = mu / psi_s  # coefficient of tangential velocity in sticking friction
-    contact_k = 1000  # spring constant for contact
+    contact_k = 300  # spring constant for contact
     contact_d = 2 * jnp.sqrt(box_mass * contact_k)  # critical damping
 
     # Contact point is approximated as the center of the turtlebot in the box frame
@@ -174,7 +190,7 @@ def calc_box_turtle_contact_wrench(
         v_contactT_B - v_contactT_B.dot(normal) * normal
     )  # relative velocity in tangent direction
     normal_velocity = v_contactT_B.dot(normal)  # scalar, along the normal vector
-    tangent = tangential_velocity / (jnp.linalg.norm(tangential_velocity + 1e-3) + 1e-3)
+    tangent = tangential_velocity / (softnorm(tangential_velocity) + 1e-3)
 
     # Get signed distance
     phi_turtle_box = box_turtle_signed_distance(
@@ -189,7 +205,7 @@ def calc_box_turtle_contact_wrench(
     # Use the same simplified friction model as used for ground contact
     normal_force = -contact_k * phi_turtle_box  # scalar, in normal direction
     normal_force = normal_force - contact_d * normal_velocity * (phi_turtle_box < 0)
-    sticking = jnp.linalg.norm(tangential_velocity + 1e-3) <= psi_s
+    sticking = softnorm(tangential_velocity) <= psi_s
     slipping = jnp.logical_not(sticking)
     friction_coefficient = sticking * c * tangential_velocity + slipping * mu * tangent
     tangent_force = -friction_coefficient * normal_force  # vector!
@@ -200,20 +216,24 @@ def calc_box_turtle_contact_wrench(
     contact_force_W = R_WB @ contact_force_B
 
     # Add the contact force to the box and turtlebot
+    p_Tcontact_W = -R_WB @ normal * turtle_radius
+    p_Bcontact_W = p_BT_W + p_Tcontact_W
     box_wrench = jnp.zeros(3)
     box_wrench = box_wrench.at[:2].add(-contact_force_W)
-    box_wrench = box_wrench.at[2].add(jnp.cross(p_BT_W, -contact_force_W))
+    box_wrench = box_wrench.at[2].add(jnp.cross(p_Bcontact_W, -contact_force_W))
 
-    turtle_forces = contact_force_W
+    turtle_wrench = jnp.zeros(3)
+    turtle_wrench = turtle_wrench.at[:2].add(contact_force_W)
+    turtle_wrench = turtle_wrench.at[2].add(jnp.cross(p_Tcontact_W, contact_force_W))
 
-    return box_wrench, turtle_forces
+    return box_wrench, turtle_wrench
 
 
-@jax.jit
+# @jax.jit
 def turtlebot_dynamics_step(
     current_state: jnp.ndarray,
     control_input: jnp.ndarray,
-    control_gains: jnp.ndarray,
+    low_level_control_gains: jnp.ndarray,
     external_wrench: jnp.ndarray,
     mu: jnp.ndarray,
     mass: jnp.ndarray,
@@ -225,7 +245,7 @@ def turtlebot_dynamics_step(
     args:
         current_state: (6,) array of (x, y, theta, vx, vy, omega) state of the turtlebot
         control_input: (2,) array of (v_d, omega_d) desired velocities of the turtlebot
-        control_gains: (2,) array of proportional control gains for v and omega.
+        low_level_control_gains: (2,) array of proportional gains for v and omega.
         external_wrench (3,) array of external forces and torque (fx, fy, tau)
         mu: 1-element 0-dimensional array of friction coefficient
         mass: 1-element 0-dimensional array of robot mass
@@ -243,17 +263,17 @@ def turtlebot_dynamics_step(
     current_omega = current_state[5]
     desired_velocity = control_input[0] * jnp.array([jnp.cos(theta), jnp.sin(theta)])
     desired_omega = control_input[1]
-    k_v, k_w = control_gains
+    k_v, k_w = low_level_control_gains
     f_control = k_v * (desired_velocity - current_velocity)
     tau_control = k_w * (desired_omega - current_omega)
 
     # Saturate the control force at the friction limit
     f_normal = g * mass
     f_control_limit = mu * f_normal
-    f_control_scale = jnp.minimum(jnp.linalg.norm(f_control), f_control_limit)
+    f_control_scale = jnp.minimum(softnorm(f_control), f_control_limit)
     # When we compute norms, we need to add a small amount to make the gradient
     # defined at zero. We also need to add a small bit to avoid dividing by zero
-    f_control_scale /= jnp.linalg.norm(f_control + 1e-3) + 1e-3
+    f_control_scale /= softnorm(f_control) + 1e-3
 
     # Sum the forces
     f_sum = f_control + external_wrench[:2]
@@ -277,6 +297,7 @@ def box_dynamics_step(
     external_wrench: jnp.ndarray,
     mu: jnp.ndarray,
     mass: jnp.ndarray,
+    box_size: jnp.ndarray,
     dt: float,
 ) -> jnp.ndarray:
     """Compute the one-step dynamics update for a box
@@ -286,6 +307,7 @@ def box_dynamics_step(
         external_wrench (3,) array of external forces and torque (fx, fy, tau)
         mu: 1-element 0-dimensional array of friction coefficient
         mass: 1-element 0-dimensional array of box mass
+        box_size: 1-element 0-dimensional array of box size
         dt: the timestep at which to simulate
 
     returns: the new state of the turtlebot
@@ -313,11 +335,13 @@ def box_dynamics_step(
 
 @partial(jax.jit, static_argnames=["n_turtles"])
 def multi_agent_box_dynamics_step(
-    current_turtlebot_state: jnp.ndarray,
+    current_turtlebot_states: jnp.ndarray,
     current_box_state: jnp.ndarray,
     control_input: jnp.ndarray,
-    control_gains: jnp.ndarray,
-    mu: jnp.ndarray,
+    low_level_control_gains: jnp.ndarray,
+    mu_turtle_ground: jnp.ndarray,
+    mu_box_ground: jnp.ndarray,
+    mu_box_turtle: jnp.ndarray,
     box_mass: jnp.ndarray,
     turtle_mass: jnp.ndarray,
     box_size: jnp.ndarray,
@@ -328,13 +352,18 @@ def multi_agent_box_dynamics_step(
     """Compute the one-step dynamics update for a box and multiple turtlebots
 
     args:
-        current_turtlebot_state: (n_turtles, 6) array of (x, y, theta, vx, vy, omega)
+        current_turtlebot_states: (n_turtles, 6) array of (x, y, theta, vx, vy, omega)
                                  state for each of n_turtles turtlebots
         current_box_state: (6,) array of (x, y, theta, vx, vy, omega) state of the box
         control_input: (n_turtles, 2) array of (v_d, omega_d) desired velocities for
                        each turtlebot
-        control_gains: (2,) array of proportional control gains for v and omega.
-        mu: 1-element 0-dimensional array of friction coefficient
+        low_level_control_gains: (2,) array of control gains for v and omega.
+        mu_turtle_ground: 1-element 0-dimensional array of friction coefficient between
+                          turtlebot and ground
+        mu_box_ground: 1-element 0-dimensional array of friction coefficient between
+                       box and ground
+        mu_box_turtle: 1-element 0-dimensional array of friction coefficient between
+                       box and turtlebot
         box_mass: 1-element 0-dimensional array of box mass
         turtle_mass: 1-element 0-dimensional array of turtlebot mass
         box_size: 1-element 0-dimensional array of box side length
@@ -345,15 +374,15 @@ def multi_agent_box_dynamics_step(
     returns: the new state of the turtlebots and the new state of the box
     """
     # Loop through each turtlebot and obtain its contact force with the box
-    new_turtlebot_state = jnp.zeros_like(current_turtlebot_state)
+    new_turtlebot_states = jnp.zeros_like(current_turtlebot_states)
     total_box_wrench = jnp.zeros((3,))
     for i in range(n_turtles):
-        box_contact_wrench, turtle_i_contact_force = calc_box_turtle_contact_wrench(
+        box_contact_wrench, turtle_i_contact_wrench = calc_box_turtle_contact_wrench(
             current_box_state,
-            current_turtlebot_state[i],
+            current_turtlebot_states[i],
             box_size,
             box_mass,
-            mu,
+            mu_box_turtle,
             turtle_radius,
         )
 
@@ -361,17 +390,13 @@ def multi_agent_box_dynamics_step(
         total_box_wrench += box_contact_wrench
 
         # Update the state of the turtlebot
-        turtle_i_contact_wrench = jnp.zeros((3,))
-        turtle_i_contact_wrench = turtle_i_contact_wrench.at[:2].set(
-            turtle_i_contact_force
-        )
-        new_turtlebot_state = new_turtlebot_state.at[i].set(
+        new_turtlebot_states = new_turtlebot_states.at[i].set(
             turtlebot_dynamics_step(
-                current_turtlebot_state[i],
+                current_turtlebot_states[i],
                 control_input[i],
-                control_gains,
-                turtle_i_contact_force,
-                mu,
+                low_level_control_gains,
+                turtle_i_contact_wrench,
+                mu_turtle_ground,
                 turtle_mass,
                 turtle_radius,
                 dt,
@@ -382,117 +407,164 @@ def multi_agent_box_dynamics_step(
     new_box_state = box_dynamics_step(
         current_box_state,
         total_box_wrench,
-        mu,
+        mu_box_ground,
         box_mass,
+        box_size,
         dt,
     )
 
-    return new_turtlebot_state, new_box_state
+    return new_turtlebot_states, new_box_state
 
 
-if __name__ == "__main__":
-    # # Test turtlebot dynamics
-    # T = 10
-    # dt = 0.01
-    # n_steps = int(T // dt)
-    # mu = jnp.array(1.0)
-    # mass = jnp.array(1.0)
-    # chassis_radius = jnp.array(0.1)
-    # control_gains = jnp.array([5.0, 0.1])
-    # initial_state = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    # states = jnp.zeros((n_steps, 6))
-    # states = states.at[0].set(initial_state)
-    # for t in range(n_steps - 1):
-    #     control_input = jnp.array([2.0, 1.0])
-    #     external_wrench = jnp.zeros((3,))
-    #     new_state = turtlebot_dynamics_step(
-    #         states[t],
-    #         control_input,
-    #         control_gains,
-    #         external_wrench,
-    #         mu,
-    #         mass,
-    #         chassis_radius,
-    #         dt,
-    #     )
-    #     states = states.at[t + 1].set(new_state)
+@jax.jit
+def turtle_nn_controller(
+    params: List[Tuple[jnp.ndarray, jnp.ndarray]],
+    turtle_states: jnp.ndarray,
+    final_box_location: jnp.ndarray,
+):
+    """
+    Compute the control inputs for a fleet of turtlebots using a neural network.
 
-    # plt.plot(states[:, 0], states[:, 1])
-    # plt.xlabel("x")
-    # plt.ylabel("y")
-    # plt.gca().set_aspect("equal")
-    # plt.show()
+    Uses tanh activations everywhere except the final layer
 
-    # # Test signed distance calculation
-    # box_pose = jnp.array([-0.4, 0.2, -0.1])
-    # box_size = jnp.array(0.5)
+    args:
+        params: list of tuples with weights and biases for each layer. Weights should be
+                (n_out, n_in) arrays and corresponding biases should be (n_out). The
+                first layer should have n_in = n_turtle * 6 + 3, and the last layer
+                should have n_out = n_turtle * 2
+        turtle_states: (n_turtle, 6) array of current turtlebot states.
+        final_box_location: (3,) array of desired x, y, and theta for the box
+    """
+    # Concatenate all inputs into a single feature array
+    activations = jnp.concatenate(turtle_states.reshape(-1), final_box_location)
 
-    # turtle_x = jnp.linspace(-1, 1, 100)
-    # turtle_z = jnp.linspace(-1, 1, 100)
+    # Loop through all layers except the final one
+    for weight, bias in params[:-1]:
+        activations = jnp.dot(weight, activations)
+        activations = jnp.tanh(activations) + bias
 
-    # turtle_X, turtle_Z = jnp.meshgrid(turtle_x, turtle_z)
-    # turtle_XZ = jnp.stack((turtle_X, turtle_Z)).reshape(2, 10000).T
+    # The last layer is just linear
+    weight, bias = params[-1]
+    output = jnp.dot(weight, activations) + bias
 
-    # f_phi = lambda turtle_pose: box_turtle_signed_distance(
-    #     box_pose, turtle_pose, box_size, chassis_radius
-    # )
-    # Phi = jax.vmap(f_phi, in_axes=0)(turtle_XZ).reshape(100, 100)
-    # fig, ax = plt.subplots()
-    # contours = ax.contourf(turtle_X, turtle_Z, Phi, levels=10)
-    # zero_contour = ax.contour(turtle_X, turtle_Z, Phi, levels=[0], colors="r")
-    # ax.set_xlabel(r"$x$")
-    # ax.set_ylabel(r"$z$")
-    # ax.set_title(
-    #     r"SDF for a cube at $(x, z, \theta)$ = "
-    #     + "({:.2f}, {:.2f}, {:.2f})".format(box_pose[0], box_pose[1], box_pose[2])
-    # )
-    # ax.set_aspect("equal")
-    # fig.colorbar(contours)
-    # plt.show()
+    return output
 
-    # TODO: implement plotting utilities
-    # TODO: check box trajectory alone
-    # TODO: check 1 turtle + box interaction
-    # TODO: check 2 turtle + box interaction
 
-    # Test box and 1 turtlebot
-    T = 1
-    dt = 0.01
-    n_steps = int(T // dt)
-    mu = jnp.array(1.0)
-    turtle_mass = jnp.array(1.0)
-    box_mass = jnp.array(1.0)
-    box_size = jnp.array(0.5)
-    chassis_radius = jnp.array(0.1)
-    control_gains = jnp.array([5.0, 0.1])
-    initial_turtle_state = jnp.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
-    initial_box_state = jnp.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0])
-    turtle_states = jnp.zeros((n_steps, 1, 6))
-    turtle_states = turtle_states.at[0].set(initial_turtle_state)
-    box_states = jnp.zeros((n_steps, 6))
-    box_states = box_states.at[0].set(initial_box_state)
-    for t in range(n_steps - 1):
-        control_input = jnp.array([[2.0, 0.0]])
-        external_wrench = jnp.zeros((3,))
-        new_turtle_state, new_box_state = multi_agent_box_dynamics_step(
-            turtle_states[t],
-            box_states[t],
-            control_input,
-            control_gains,
-            mu,
-            box_mass,
-            turtle_mass,
-            box_size,
-            chassis_radius,
-            dt,
-            1,
-        )
-        turtle_states = turtle_states.at[t + 1].set(new_turtle_state)
-        box_states = box_states.at[t + 1].set(new_box_state)
+@partial(jax.jit, static_argnames=["n_turtles"])
+def multi_agent_box_dynamics_step_with_controller(
+    current_turtlebot_states: jnp.ndarray,
+    current_box_state: jnp.ndarray,
+    controller_params: List[Tuple[jnp.ndarray, jnp.ndarray]],
+    final_box_location: jnp.ndarray,
+    low_level_control_gains: jnp.ndarray,
+    mu_turtle_ground: jnp.ndarray,
+    mu_box_ground: jnp.ndarray,
+    mu_box_turtle: jnp.ndarray,
+    box_mass: jnp.ndarray,
+    turtle_mass: jnp.ndarray,
+    box_size: jnp.ndarray,
+    turtle_radius: jnp.ndarray,
+    dt: float,
+    n_turtles: int,
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """Compute the one-step dynamics update for a box and multiple turtlebots,
+    evaluating a neural network controller to do so.
 
-    plt.plot(turtle_states[:, 0, 0], turtle_states[:, 0, 1])
-    plt.plot(box_states[:, 0], box_states[:, 1], "s-")
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.gca().set_aspect("equal")
-    plt.show()
+    args:
+        current_turtlebot_states: (n_turtles, 6) array of (x, y, theta, vx, vy, omega)
+                                 state for each of n_turtles turtlebots
+        current_box_state: (6,) array of (x, y, theta, vx, vy, omega) state of the box
+        controller_params: list of tuples with weights and biases for each layer.
+                           Weights should be (n_out, n_in) arrays and corresponding
+                           biases should be (n_out). The first layer should have n_in =
+                           n_turtles * 6 + 3, and the last layer should have n_out =
+                           n_turtles * 2
+        final_box_location: (3,) array of desired x, y, and theta for the box
+        low_level_control_gains: (2,) array of control gains for v and omega.
+        mu_turtle_ground: 1-element 0-dimensional array of friction coefficient between
+                          turtlebot and ground
+        mu_box_ground: 1-element 0-dimensional array of friction coefficient between
+                       box and ground
+        mu_box_turtle: 1-element 0-dimensional array of friction coefficient between
+                       box and turtlebot
+        box_mass: 1-element 0-dimensional array of box mass
+        turtle_mass: 1-element 0-dimensional array of turtlebot mass
+        box_size: 1-element 0-dimensional array of box side length
+        turtle_radius: 1-element 0-dimensional array of robot chassis radius
+        dt: the timestep at which to simulate
+        n_turtles: integer number of turtlebots
+
+    returns: the new state of the turtlebots and the new state of the box
+    """
+    # Get the control input
+    control_input = turtle_nn_controller(
+        controller_params, current_turtlebot_states, final_box_location
+    )
+    control_input = control_input.reshape(current_turtlebot_states.shape[0], 2)
+
+    # Use that control input to step
+    return multi_agent_box_dynamics_step(
+        current_turtlebot_states,
+        current_box_state,
+        control_input,
+        low_level_control_gains,
+        mu_turtle_ground,
+        mu_box_ground,
+        mu_box_turtle,
+        box_mass,
+        turtle_mass,
+        box_size,
+        turtle_radius,
+        dt,
+        n_turtles,
+    )
+
+
+def mam_simulate(
+    design_params: jnp.ndarray,
+    exogenous_sample: jnp.ndarray,
+    n_layers: int,
+    layer_widths: List[int],
+    time_steps: int,
+    dt: float,
+    n_turtles: int,
+):
+    """Simulate the multi-agent manipulation system.
+
+    args:
+        design_params: an array containing the weights and biases of a controller neural
+                       network.
+        exogenous_sample: (6,) array of (mu_turtle_ground, mu_box_ground, mu_box_turtle,
+                          desired_box_x, desired_box_y, desired_box_theta)
+        n_layers: number of layers in the neural network
+        layer_widths: number of units in each layer. First element should be
+                      n_turtles * 6 + 3. Last element should be n_turtles * 2
+        time_steps: the number of steps to simulate
+        dt: the duration of each time step
+        n_turtles: integer number of turtlebots
+
+    returns:
+        (6,) array containing the final location of the box relative to the desired
+        location
+    """
+    # Extract the weights and biases
+    params = []
+    assert len(layer_widths) == n_layers
+    assert layer_widths[0] == n_turtles * 6 + 3
+    assert layer_widths[-1] == n_turtles * 2
+    start_index = 0
+    for i in range(1, n_layers):
+        input_width = layer_widths[i - 1]
+        output_width = layer_widths[i]
+
+        num_weight_values = input_width * output_width
+        weight = design_params[start_index : start_index + num_weight_values]
+        start_index += num_weight_values
+
+        num_bias_values = output_width
+        bias = design_params[start_index : start_index + num_bias_values]
+        start_index += num_bias_values
+
+        params.append((weight, bias))
+
+    raise NotImplementedError
