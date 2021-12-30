@@ -1,0 +1,292 @@
+WARNING:absl:No GPU/TPU found, falling back to CPU. (Set TF_CPP_MIN_LOG_LEVEL=0 and rerun for more info.)
+RUNNING THE L-BFGS-B CODE
+
+           * * *
+
+Machine precision = 2.220D-16
+ N =           96     M =           10
+ This problem is unconstrained.
+
+At X0         0 variables are exactly at the bounds
+
+At iterate    0    f=  1.30592D+00    |proj g|=  8.82638D+00
+
+At iterate    1    f=  9.36362D-01    |proj g|=  1.86610D-01
+
+At iterate    2    f=  7.49664D-01    |proj g|=  6.79008D-01
+
+At iterate    3    f=  7.45079D-01    |proj g|=  1.11372D+00
+
+At iterate    4    f=  7.20896D-01    |proj g|=  1.45644D+00
+
+At iterate    5    f=  6.81275D-01    |proj g|=  7.51814D-01
+
+At iterate    6    f=  6.58337D-01    |proj g|=  1.32533D+00
+
+At iterate    7    f=  6.46833D-01    |proj g|=  3.04261D-01
+
+At iterate    8    f=  6.46248D-01    |proj g|=  2.94144D-01
+
+At iterate    9    f=  6.45087D-01    |proj g|=  2.89337D-01
+
+At iterate   10    f=  6.43541D-01    |proj g|=  2.37635D-01
+
+At iterate   11    f=  6.39824D-01    |proj g|=  1.58532D-01
+
+At iterate   12    f=  6.33818D-01    |proj g|=  3.66635D-01
+
+At iterate   13    f=  5.64222D-01    |proj g|=  1.46792D+00
+
+At iterate   14    f=  5.59869D-01    |proj g|=  1.09254D+00
+
+At iterate   15    f=  5.32642D-01    |proj g|=  6.37651D-01
+
+At iterate   16    f=  5.25236D-01    |proj g|=  6.07169D-01
+
+At iterate   17    f=  5.06796D-01    |proj g|=  4.11648D-01
+
+At iterate   18    f=  4.87513D-01    |proj g|=  3.21527D-01
+
+At iterate   19    f=  4.79338D-01    |proj g|=  6.31153D-01
+
+At iterate   20    f=  4.75139D-01    |proj g|=  3.57272D-01
+
+At iterate   21    f=  4.74877D-01    |proj g|=  4.28545D-01
+
+At iterate   22    f=  4.74814D-01    |proj g|=  4.24092D-01
+
+At iterate   23    f=  4.74175D-01    |proj g|=  4.23086D-01
+
+At iterate   24    f=  4.69646D-01    |proj g|=  2.17819D-01
+
+At iterate   25    f=  4.68840D-01    |proj g|=  1.92652D-01
+
+At iterate   26    f=  4.66895D-01    |proj g|=  1.78039D-01
+
+At iterate   27    f=  4.65950D-01    |proj g|=  7.65290D-01
+
+At iterate   28    f=  4.65494D-01    |proj g|=  8.11509D-01
+  ys=-1.962E-05  -gs= 1.692E-03 BFGS update SKIPPED
+
+At iterate   29    f=  4.65493D-01    |proj g|=  8.11555D-01
+  ys=-1.685E-10  -gs= 2.569E-06 BFGS update SKIPPED
+
+ Bad direction in the line search;
+   refresh the lbfgs memory and restart the iteration.
+
+At iterate   30    f=  4.65074D-01    |proj g|=  5.17006D-01
+
+At iterate   31    f=  4.64909D-01    |proj g|=  4.76196D-01
+
+At iterate   32    f=  4.64896D-01    |proj g|=  4.75603D-01
+
+At iterate   33    f=  4.64334D-01    |proj g|=  3.02010D-01
+
+At iterate   34    f=  4.63922D-01    |proj g|=  6.32514D-01
+
+At iterate   35    f=  4.62121D-01    |proj g|=  7.48143D-01
+
+At iterate   36    f=  4.59820D-01    |proj g|=  1.13259D+00
+
+At iterate   37    f=  4.54349D-01    |proj g|=  1.50292D+00
+
+At iterate   38    f=  4.51413D-01    |proj g|=  1.53113D+00
+
+At iterate   39    f=  4.51127D-01    |proj g|=  1.52371D+00
+
+At iterate   40    f=  4.50942D-01    |proj g|=  1.47309D+00
+
+At iterate   41    f=  4.50847D-01    |proj g|=  1.47109D+00
+
+At iterate   42    f=  4.50690D-01    |proj g|=  8.34482D-01
+
+At iterate   43    f=  4.49164D-01    |proj g|=  4.41328D-01
+
+At iterate   44    f=  4.49022D-01    |proj g|=  4.35196D-01
+
+At iterate   45    f=  4.45763D-01    |proj g|=  6.77561D-01
+
+At iterate   46    f=  4.39139D-01    |proj g|=  1.22768D+00
+
+At iterate   47    f=  4.34734D-01    |proj g|=  2.51375D+00
+
+At iterate   48    f=  4.23711D-01    |proj g|=  2.49548D+00
+
+At iterate   49    f=  3.59416D-01    |proj g|=  1.13730D+00
+
+At iterate   50    f=  3.50292D-01    |proj g|=  3.91218D-01
+
+At iterate   51    f=  3.46390D-01    |proj g|=  8.04668D-01
+
+At iterate   52    f=  3.37973D-01    |proj g|=  4.77966D-01
+
+At iterate   53    f=  3.18900D-01    |proj g|=  4.40366D-01
+
+At iterate   54    f=  2.94461D-01    |proj g|=  3.39330D-01
+
+At iterate   55    f=  2.75133D-01    |proj g|=  1.16268D+00
+
+At iterate   56    f=  2.62209D-01    |proj g|=  8.25491D-01
+
+At iterate   57    f=  2.60209D-01    |proj g|=  1.39709D-01
+
+At iterate   58    f=  2.56999D-01    |proj g|=  1.90543D-01
+
+At iterate   59    f=  2.44360D-01    |proj g|=  2.40523D-01
+
+At iterate   60    f=  2.42910D-01    |proj g|=  1.08744D+00
+
+At iterate   61    f=  2.21895D-01    |proj g|=  8.46253D-01
+
+At iterate   62    f=  2.15741D-01    |proj g|=  3.01354D-01
+
+At iterate   63    f=  2.14340D-01    |proj g|=  1.01357D-01
+
+At iterate   64    f=  2.13207D-01    |proj g|=  1.01763D-01
+
+At iterate   65    f=  2.12220D-01    |proj g|=  1.49980D-01
+
+At iterate   66    f=  2.08694D-01    |proj g|=  2.31851D-01
+
+At iterate   67    f=  2.04295D-01    |proj g|=  3.65063D-01
+
+At iterate   68    f=  1.96681D-01    |proj g|=  5.73645D-01
+
+At iterate   69    f=  1.95307D-01    |proj g|=  3.62038D-01
+
+At iterate   70    f=  1.91616D-01    |proj g|=  7.31384D-01
+
+At iterate   71    f=  1.89204D-01    |proj g|=  1.88760D-01
+
+At iterate   72    f=  1.88054D-01    |proj g|=  1.10444D-01
+
+At iterate   73    f=  1.86723D-01    |proj g|=  2.79513D-01
+
+At iterate   74    f=  1.85422D-01    |proj g|=  3.34608D-01
+
+At iterate   75    f=  1.83044D-01    |proj g|=  2.20528D-01
+
+At iterate   76    f=  1.80250D-01    |proj g|=  2.34825D-01
+
+At iterate   77    f=  1.79362D-01    |proj g|=  3.30930D-01
+
+At iterate   78    f=  1.79101D-01    |proj g|=  1.24620D-01
+
+At iterate   79    f=  1.79048D-01    |proj g|=  2.02747D-01
+
+At iterate   80    f=  1.78854D-01    |proj g|=  1.79352D-01
+
+At iterate   81    f=  1.78124D-01    |proj g|=  1.99588D-01
+
+At iterate   82    f=  1.78034D-01    |proj g|=  2.36148D-01
+
+At iterate   83    f=  1.75888D-01    |proj g|=  2.19342D-01
+
+At iterate   84    f=  1.74781D-01    |proj g|=  3.57702D-01
+
+At iterate   85    f=  1.74322D-01    |proj g|=  1.76444D-01
+
+At iterate   86    f=  1.73921D-01    |proj g|=  5.14068D-02
+
+At iterate   87    f=  1.73289D-01    |proj g|=  1.64163D-01
+
+At iterate   88    f=  1.73185D-01    |proj g|=  2.28083D-01
+
+At iterate   89    f=  1.73071D-01    |proj g|=  2.09072D-01
+
+At iterate   90    f=  1.72993D-01    |proj g|=  1.96373D-01
+
+At iterate   91    f=  1.72750D-01    |proj g|=  1.83323D-01
+
+At iterate   92    f=  1.72535D-01    |proj g|=  1.12179D-01
+
+At iterate   93    f=  1.72286D-01    |proj g|=  1.33942D-01
+
+At iterate   94    f=  1.71527D-01    |proj g|=  1.64183D-01
+
+At iterate   95    f=  1.70708D-01    |proj g|=  1.62625D-01
+
+At iterate   96    f=  1.70589D-01    |proj g|=  1.37144D-01
+
+At iterate   97    f=  1.70373D-01    |proj g|=  7.17073D-02
+
+At iterate   98    f=  1.69670D-01    |proj g|=  8.49861D-02
+
+At iterate   99    f=  1.67945D-01    |proj g|=  2.17970D-01
+
+At iterate  100    f=  1.67360D-01    |proj g|=  4.63490D-01
+
+At iterate  101    f=  1.66424D-01    |proj g|=  1.65696D-01
+
+At iterate  102    f=  1.65753D-01    |proj g|=  8.39022D-02
+
+At iterate  103    f=  1.64730D-01    |proj g|=  1.54281D-01
+
+At iterate  104    f=  1.64127D-01    |proj g|=  1.95599D-01
+
+At iterate  105    f=  1.63713D-01    |proj g|=  1.94542D-01
+
+At iterate  106    f=  1.62484D-01    |proj g|=  3.53844D-01
+
+At iterate  107    f=  1.62480D-01    |proj g|=  2.20555D-01
+
+At iterate  108    f=  1.62480D-01    |proj g|=  2.20164D-01
+
+At iterate  109    f=  1.62467D-01    |proj g|=  2.19028D-01
+
+At iterate  110    f=  1.62467D-01    |proj g|=  2.19113D-01
+  ys=-8.708E-11  -gs= 1.991E-07 BFGS update SKIPPED
+
+At iterate  111    f=  1.62467D-01    |proj g|=  2.19113D-01
+
+           * * *
+
+Tit   = total number of iterations
+Tnf   = total number of function evaluations
+Tnint = total number of segments explored during Cauchy searches
+Skip  = number of BFGS updates skipped
+Nact  = number of active bounds at final generalized Cauchy point
+Projg = norm of the final projected gradient
+F     = final function value
+
+           * * *
+
+   N    Tit     Tnf  Tnint  Skip  Nact     Projg        F
+   96    111    322      2     3     0   2.191D-01   1.625D-01
+  F =  0.16246710717678070     
+
+CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH             
+
+ Warning:  more than 10 function and gradient
+   evaluations in the last line search.  Termination
+   may possibly be caused by a bad search direction.
+==================================
+Success? True! Message: CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH
+----------------------------------
+Optimal design parameters:
+[-7.04576671e-02 -9.21882749e-01 -1.62223041e-01 -2.47734152e-02
+  6.42141923e-02 -1.16768099e-01  3.97659421e-01 -2.97620744e-01
+  7.34597147e-01  8.36179126e-04  8.69541392e-02 -4.81038913e-03
+  1.45657770e-02  1.25289336e-01 -4.49741870e-01 -4.87457156e-01
+  2.53358305e-01 -2.85509288e-01 -9.68895480e-02  3.88645269e-02
+  1.98535010e-01 -3.48910280e-02  1.17699109e-01 -2.01122597e-01
+  1.91382423e-01  1.66218638e-01 -4.42797830e-03  4.40929443e-01
+  2.42168158e-01  5.35399199e-01  3.66655290e-01 -1.16849697e+00
+ -3.17824066e-01 -1.11400425e-01  1.19768791e-01 -2.43930593e-02
+  6.20200932e-01 -1.47774622e-01 -1.99982271e-01 -4.38794158e-02
+ -1.83652937e-02  7.43897483e-02  5.50693367e-03  6.20339159e-03
+ -2.49915794e-02 -1.31198717e-02 -6.55680895e-01  1.31707042e-01
+ -7.78124928e-02  3.08433245e-03  1.14277817e-01  1.02980518e+00
+ -5.12877882e-01 -2.67077200e-02  8.53846781e-03 -1.43913552e-01
+ -1.78483292e-01 -5.64252883e-02 -1.21457420e-01 -2.07552454e-03
+  4.76801284e-02  4.78325248e-01  1.20024085e-01  1.51159957e-01
+ -9.13563073e-02 -3.08981743e-02 -5.68452552e-02 -3.30677569e-01
+ -1.92424640e-01  1.14437558e-01 -1.45058617e-01  2.33762369e-01
+  5.51105976e-01  6.47466302e-01  1.27754295e+00  2.18899593e-01
+ -2.97684282e-01 -4.02013585e-02 -5.57296239e-02  1.94659501e-01
+  2.74614133e-02  6.00912213e-01 -1.40517667e-01 -2.18123347e-01
+  2.18643829e-01 -5.49983159e-02  1.60712376e-02 -2.05764323e-02
+  1.10168651e-01 -1.78522468e-01  4.82704282e-01  1.01096421e-01
+  3.06500643e-01  1.66432306e-01 -3.11918974e-01  3.31087261e-01]
+Optimal mean cost: 0.1555229276418686
+Optimal cost variance: 0.06944519281387329

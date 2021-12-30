@@ -4,7 +4,9 @@ import matplotlib.patches as patches
 import matplotlib.transforms as transforms
 
 
-def make_box_patches(box_state, alpha: float, box_side_length: float, ax):
+def make_box_patches(
+    box_state, alpha: float, box_side_length: float, ax, hatch: bool = False
+):
     """Adds patches for visualizing the box to the given axes
 
     args:
@@ -12,6 +14,7 @@ def make_box_patches(box_state, alpha: float, box_side_length: float, ax):
         alpha: float transparency
         box_side_length: float side length of box
         ax: matplotlib axes
+        hatch: if True, hatch the box patch
     returns:
         a list of properly transformed and colored patches for the box
     """
@@ -31,6 +34,7 @@ def make_box_patches(box_state, alpha: float, box_side_length: float, ax):
         transform=xform,
         edgecolor=plt.get_cmap("Blues")(0.1 + alpha),
         fill=False,
+        hatch=("xx" if hatch else None),
     )
     ax.add_patch(box)
 

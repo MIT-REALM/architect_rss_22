@@ -2,6 +2,12 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
+from architect.examples.multi_agent_manipulation.mam_design_parameters import (
+    MAMDesignParameters,
+)
+from architect.examples.multi_agent_manipulation.mam_exogenous_parameters import (
+    MAMExogenousParameters,
+)
 from architect.examples.multi_agent_manipulation.mam_plotting import (
     plot_box_trajectory,
     plot_turtle_trajectory,
@@ -11,6 +17,7 @@ from architect.examples.multi_agent_manipulation.mam_simulator import (
     box_turtle_signed_distance,
     box_dynamics_step,
     multi_agent_box_dynamics_step,
+    mam_simulate_single_push_two_turtles,
 )
 
 
@@ -21,7 +28,7 @@ def test_turtlebot_dynamics():
     mu = jnp.array(1.0)
     mass = jnp.array(1.0)
     chassis_radius = jnp.array(0.1)
-    control_gains = jnp.array([5.0, 0.1])
+    low_level_control_gains = jnp.array([5.0, 0.1])
     initial_state = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     states = jnp.zeros((n_steps, 6))
     states = states.at[0].set(initial_state)
@@ -31,7 +38,7 @@ def test_turtlebot_dynamics():
         new_state = turtlebot_dynamics_step(
             states[t],
             control_input,
-            control_gains,
+            low_level_control_gains,
             external_wrench,
             mu,
             mass,
@@ -119,7 +126,7 @@ def test_box_turtle_dynamics():
     box_mass = jnp.array(1.0)
     box_size = jnp.array(0.5)
     chassis_radius = jnp.array(0.1)
-    control_gains = jnp.array([5.0, 0.1])
+    low_level_control_gains = jnp.array([5.0, 0.1])
     initial_turtle_state = jnp.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
     initial_box_state = jnp.array([0.5, 0.1, 0.0, 0.0, 0.0, 0.0])
     turtle_states = jnp.zeros((n_steps, 1, 6))
@@ -132,7 +139,7 @@ def test_box_turtle_dynamics():
             turtle_states[t],
             box_states[t],
             control_input,
-            control_gains,
+            low_level_control_gains,
             mu_turtle_ground,
             mu_box_ground,
             mu_box_turtle,
@@ -156,7 +163,7 @@ def test_box_turtle_dynamics():
 
 def test_box_two_turtles_dynamics():
     # Test box and 2 turtlebot
-    T = 5.0
+    T = 1.0
     dt = 0.01
     n_steps = int(T // dt)
     mu_box_turtle = jnp.array(0.1)
@@ -166,25 +173,25 @@ def test_box_two_turtles_dynamics():
     box_mass = jnp.array(1.0)
     box_size = jnp.array(0.5)
     chassis_radius = jnp.array(0.1)
-    control_gains = jnp.array([5.0, 0.1])
+    low_level_control_gains = jnp.array([5.0, 0.1])
     initial_turtle_state = jnp.array(
         [
-            [0.15, 0.0, jnp.pi / 2 + 0.2, 0.0, 0.0, 0.0],
-            [-0.15, 0.0, jnp.pi / 2 - 0.2, 0.0, 0.0, 0.0],
+            [-0.35, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, -0.35, jnp.pi / 2, 0.0, 0.0, 0.0],
         ]
     )
-    initial_box_state = jnp.array([0.0, 0.5, jnp.pi / 4, 0.0, 0.0, 0.0])
+    initial_box_state = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     turtle_states = jnp.zeros((n_steps, 2, 6))
     turtle_states = turtle_states.at[0].set(initial_turtle_state)
     box_states = jnp.zeros((n_steps, 6))
     box_states = box_states.at[0].set(initial_box_state)
     for t in range(n_steps - 1):
-        control_input = jnp.array([[1.0, 0.0], [1.0, 0.0]])
+        control_input = jnp.array([[0.5, 0.5], [0.5, 0.5]])
         new_turtle_state, new_box_state = multi_agent_box_dynamics_step(
             turtle_states[t],
             box_states[t],
             control_input,
-            control_gains,
+            low_level_control_gains,
             mu_turtle_ground,
             mu_box_ground,
             mu_box_turtle,
@@ -207,8 +214,60 @@ def test_box_two_turtles_dynamics():
     plt.show()
 
 
+def test_push():
+    # Test mam_simulate_single_push_two_turtles function
+    dt = 0.01
+    mu_box_turtle_range = jnp.array([0.05, 0.2])
+    mu_turtle_ground_range = jnp.array([0.6, 0.8])
+    mu_box_ground_range = jnp.array([0.4, 0.6])
+    box_mass_range = jnp.array([0.9, 1.1])
+    desired_box_pose_range = jnp.array(
+        [
+            [0.0, 1.0],
+            [0.0, 1.0],
+            [-1.0, 1.0],
+        ]
+    )
+    turtlebot_displacement_covariance = (0.1 ** 2) * jnp.eye(3)
+    exogenous_params = MAMExogenousParameters(
+        mu_turtle_ground_range,
+        mu_box_ground_range,
+        mu_box_turtle_range,
+        box_mass_range,
+        desired_box_pose_range,
+        turtlebot_displacement_covariance,
+        2,
+    )
+
+    layer_widths = [15, 32, 32, 6]
+    prng_key = jax.random.PRNGKey(0)
+    prng_key, subkey = jax.random.split(prng_key)
+    design_params = MAMDesignParameters(subkey, layer_widths)
+
+    # Sample exogenous parameters
+    prng_key, subkey = jax.random.split(prng_key)
+    exogenous_sample = exogenous_params.sample(subkey)
+
+    # Simulate
+    turtle_states, box_states = mam_simulate_single_push_two_turtles(
+        design_params.get_values(),
+        exogenous_sample,
+        layer_widths,
+        dt,
+    )
+
+    plot_box_trajectory(box_states, 0.5, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 0, :], 0.1, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 1, :], 0.1, 20, plt.gca())
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.gca().set_aspect("equal")
+    plt.show()
+
+
 if __name__ == "__main__":
     # test_turtlebot_dynamics()
     # test_box_dynamics()
     # test_box_turtle_dynamics()
-    test_box_two_turtles_dynamics()
+    # test_box_two_turtles_dynamics()
+    test_push()

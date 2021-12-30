@@ -418,7 +418,7 @@ def multi_agent_box_dynamics_step(
 
 @jax.jit
 def turtle_nn_controller(
-    params: List[Tuple[jnp.ndarray, jnp.ndarray]],
+    controller_params: List[Tuple[jnp.ndarray, jnp.ndarray]],
     turtle_states: jnp.ndarray,
     final_box_location: jnp.ndarray,
 ):
@@ -428,130 +428,97 @@ def turtle_nn_controller(
     Uses tanh activations everywhere except the final layer
 
     args:
-        params: list of tuples with weights and biases for each layer. Weights should be
-                (n_out, n_in) arrays and corresponding biases should be (n_out). The
-                first layer should have n_in = n_turtle * 6 + 3, and the last layer
-                should have n_out = n_turtle * 2
-        turtle_states: (n_turtle, 6) array of current turtlebot states.
-        final_box_location: (3,) array of desired x, y, and theta for the box
+        controller_params: list of tuples with weights and biases for each layer.
+                Weights should be (n_out, n_in) arrays and corresponding biases should
+                be (n_out). The first layer should have n_in = n_turtle * 6 + 3, and the
+                last layer should have n_out = n_turtle * 3
+        turtle_states: (n_turtle, 6) array of current turtlebot states in the current
+                       box frame
+        final_box_location: (3,) array of desired x, y, and theta for the box, expressed
+                            in the current box frame.
+    returns
+        an (n_turtles, 3) array of (theta_0, v, omega) commands for each turtlebot,
+        which will be executed by first rotating each turtlebot until theta = theta_0,
+        then moving for with commands (v, omega).
     """
     # Concatenate all inputs into a single feature array
-    activations = jnp.concatenate(turtle_states.reshape(-1), final_box_location)
+    activations = jnp.concatenate((turtle_states.reshape(-1), final_box_location))
 
     # Loop through all layers except the final one
-    for weight, bias in params[:-1]:
+    for weight, bias in controller_params[:-1]:
         activations = jnp.dot(weight, activations)
         activations = jnp.tanh(activations) + bias
 
     # The last layer is just linear
-    weight, bias = params[-1]
+    weight, bias = controller_params[-1]
     output = jnp.dot(weight, activations) + bias
 
     return output
 
 
-@partial(jax.jit, static_argnames=["n_turtles"])
-def multi_agent_box_dynamics_step_with_controller(
-    current_turtlebot_states: jnp.ndarray,
-    current_box_state: jnp.ndarray,
-    controller_params: List[Tuple[jnp.ndarray, jnp.ndarray]],
-    final_box_location: jnp.ndarray,
-    low_level_control_gains: jnp.ndarray,
-    mu_turtle_ground: jnp.ndarray,
-    mu_box_ground: jnp.ndarray,
-    mu_box_turtle: jnp.ndarray,
-    box_mass: jnp.ndarray,
-    turtle_mass: jnp.ndarray,
-    box_size: jnp.ndarray,
-    turtle_radius: jnp.ndarray,
-    dt: float,
-    n_turtles: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Compute the one-step dynamics update for a box and multiple turtlebots,
-    evaluating a neural network controller to do so.
+def renormalize_plan(plan: jnp.ndarray):
+    """Re-scale the plan to acceptable control ranges.
 
     args:
-        current_turtlebot_states: (n_turtles, 6) array of (x, y, theta, vx, vy, omega)
-                                 state for each of n_turtles turtlebots
-        current_box_state: (6,) array of (x, y, theta, vx, vy, omega) state of the box
-        controller_params: list of tuples with weights and biases for each layer.
-                           Weights should be (n_out, n_in) arrays and corresponding
-                           biases should be (n_out). The first layer should have n_in =
-                           n_turtles * 6 + 3, and the last layer should have n_out =
-                           n_turtles * 2
-        final_box_location: (3,) array of desired x, y, and theta for the box
-        low_level_control_gains: (2,) array of control gains for v and omega.
-        mu_turtle_ground: 1-element 0-dimensional array of friction coefficient between
-                          turtlebot and ground
-        mu_box_ground: 1-element 0-dimensional array of friction coefficient between
-                       box and ground
-        mu_box_turtle: 1-element 0-dimensional array of friction coefficient between
-                       box and turtlebot
-        box_mass: 1-element 0-dimensional array of box mass
-        turtle_mass: 1-element 0-dimensional array of turtlebot mass
-        box_size: 1-element 0-dimensional array of box side length
-        turtle_radius: 1-element 0-dimensional array of robot chassis radius
-        dt: the timestep at which to simulate
-        n_turtles: integer number of turtlebots
-
-    returns: the new state of the turtlebots and the new state of the box
+        plan: output of turtle_nn_controller, reshaped to (n_turtles, 3)
+    returns:
+        a renormalized plan
     """
-    # Get the control input
-    control_input = turtle_nn_controller(
-        controller_params, current_turtlebot_states, final_box_location
-    )
-    control_input = control_input.reshape(current_turtlebot_states.shape[0], 2)
+    # Scale velocity to be between 0 and 2.0
+    max_v = 2.0
+    plan = plan.at[:, 1].set(max_v * jax.nn.sigmoid(plan[:, 1]))
 
-    # Use that control input to step
-    return multi_agent_box_dynamics_step(
-        current_turtlebot_states,
-        current_box_state,
-        control_input,
-        low_level_control_gains,
-        mu_turtle_ground,
-        mu_box_ground,
-        mu_box_turtle,
-        box_mass,
-        turtle_mass,
-        box_size,
-        turtle_radius,
-        dt,
-        n_turtles,
-    )
+    # Scale angular velocity
+    max_w = jnp.pi
+    plan = plan.at[:, 2].set(max_w * jnp.tanh(plan[:, 2]))
+
+    # Scale heading to be between -pi/2 and pi/2
+    max_theta = jnp.pi / 2.0
+    plan = plan.at[:, 0].set(max_theta * jnp.tanh(plan[:, 0]))
+
+    return plan
 
 
-def mam_simulate(
+def mam_simulate_single_push_two_turtles(
     design_params: jnp.ndarray,
     exogenous_sample: jnp.ndarray,
-    n_layers: int,
     layer_widths: List[int],
-    time_steps: int,
     dt: float,
-    n_turtles: int,
 ):
-    """Simulate the multi-agent manipulation system.
+    """Simulate the multi-agent manipulation system executing a single push lasting 1
+    second (includes an 0.5 second setup time, so simulates for 1.5 seconds in total).
+    Assumes two turtlebots.
 
     args:
         design_params: an array containing the weights and biases of a controller neural
-                       network.
-        exogenous_sample: (6,) array of (mu_turtle_ground, mu_box_ground, mu_box_turtle,
-                          desired_box_x, desired_box_y, desired_box_theta)
-        n_layers: number of layers in the neural network
+            network.
+        exogenous_sample: (12,) array of
+            (mu_turtle_ground, mu_box_ground, mu_box_turtle, desired_box_x,
+            desired_box_y, desired_box_theta, turtle_1_x0, turtle_1_y0,
+            turtle_1_theta_0, turtle_2_x0, turtle_2_y0, turtle_2_theta0)
+
+            where the turtlebot states are displacements from nominal.
         layer_widths: number of units in each layer. First element should be
-                      n_turtles * 6 + 3. Last element should be n_turtles * 2
-        time_steps: the number of steps to simulate
-        dt: the duration of each time step
+                      15. Last element should be 6
+        dt: the duration of each time step. Causes an error if time_steps * dt < 1.0 s
         n_turtles: integer number of turtlebots
 
     returns:
         (6,) array containing the final location of the box relative to the desired
         location
     """
-    # Extract the weights and biases
-    params = []
-    assert len(layer_widths) == n_layers
+    # Set constants
+    box_size = jnp.array(0.5)
+    turtle_mass = jnp.array(1.0)
+    chassis_radius = jnp.array(0.1)
+    low_level_control_gains = jnp.array([5.0, 0.1])
+    n_turtles = 2
+
+    # Extract the weights and biases (design parameters)
+    controller_params = []
+    n_layers = len(layer_widths)
     assert layer_widths[0] == n_turtles * 6 + 3
-    assert layer_widths[-1] == n_turtles * 2
+    assert layer_widths[-1] == n_turtles * 3
     start_index = 0
     for i in range(1, n_layers):
         input_width = layer_widths[i - 1]
@@ -559,12 +526,147 @@ def mam_simulate(
 
         num_weight_values = input_width * output_width
         weight = design_params[start_index : start_index + num_weight_values]
+        weight = weight.reshape(output_width, input_width)
         start_index += num_weight_values
 
         num_bias_values = output_width
         bias = design_params[start_index : start_index + num_bias_values]
         start_index += num_bias_values
 
-        params.append((weight, bias))
+        controller_params.append((weight, bias))
 
-    raise NotImplementedError
+    # Extract the exogenous parameters
+    mu_turtle_ground = exogenous_sample[0]
+    mu_box_ground = exogenous_sample[1]
+    mu_box_turtle = exogenous_sample[2]
+    box_mass = exogenous_sample[3]
+    desired_box_pose = exogenous_sample[4:7]
+    # There are still exogenous parameters for the initial pose of each turtlebot, which
+    # we deal with next.
+
+    # Let's work in coordinates relative to the initial position of the box. As an extra
+    # bonus, since the box is symmetric, let's rotate those coordinates so that the
+    # desired location of the box is in the first quadrant.
+    initial_box_state = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    # Assume we can get to a starting position with the turtlebots near the middle of
+    # the bottom and left faces of the box, but with some exogenous offset.
+    initial_turtle_state = jnp.array(
+        [
+            [-(box_size / 2 + chassis_radius), -0.1, 0.0, 0.0, 0.0, 0.0],
+            [-0.1, -(box_size / 2 + chassis_radius), jnp.pi / 2, 0.0, 0.0, 0.0],
+        ]
+    )
+    for i in range(n_turtles):
+        initial_turtle_state = initial_turtle_state.at[i, :3].add(
+            exogenous_sample[7 + i * 3 : 7 + (i + 1) * 3]
+        )
+
+    # This random displacement may have caused some overlap between the turtlebots and
+    # the box, so simulate for some settling time to let them move out of overlap,
+    # then reset the coordinate system to the box pose
+    settle_time = 0.5
+    settle_steps = int(settle_time // dt)
+    for _ in range(settle_steps):
+        control_input = jnp.zeros((n_turtles, 2))
+        initial_turtle_state, initial_box_state = multi_agent_box_dynamics_step(
+            initial_turtle_state,
+            initial_box_state,
+            control_input,
+            low_level_control_gains,
+            mu_turtle_ground,
+            mu_box_ground,
+            mu_box_turtle,
+            box_mass,
+            turtle_mass,
+            box_size,
+            chassis_radius,
+            dt,
+            n_turtles,
+        )
+
+    # reset coordinates by zero-ing velocity,
+    initial_turtle_state = initial_turtle_state.at[:, 3:].set(0.0)
+    initial_box_state = initial_box_state.at[3:].set(0.0)
+    # setting the new box pose to the origin,
+    initial_turtle_state = initial_turtle_state.at[:, :2].add(-initial_box_state[:2])
+    initial_box_state = initial_box_state.at[:2].add(-initial_box_state[:2])
+    # and rotating everything into the box frame
+    theta = initial_box_state[2]
+    initial_turtle_state = initial_turtle_state.at[:, 2].add(-theta)
+    initial_box_state = initial_box_state.at[2].add(-theta)
+    R_WB = rotation_matrix_2d(theta)
+    R_BW = R_WB.T  # type: ignore
+    new_turtle_xy = R_BW @ initial_turtle_state[:, :2].T
+    new_turtle_xy = new_turtle_xy.T
+    initial_turtle_state = initial_turtle_state.at[:, :2].set(new_turtle_xy)
+
+    # Now get the push angle, speed, and angular velocity commands from the network
+    plan = turtle_nn_controller(
+        controller_params, initial_turtle_state, desired_box_pose
+    )
+    plan = plan.reshape(n_turtles, 3)
+    plan = renormalize_plan(plan)
+
+    # Simulate! This simulation has several phases:
+    #   1.) Set v = 0 and omega = theta_d - theta for setup_time
+    #   2.) Set v and omega based on the plan for push_time.
+    setup_time = 0.5
+    push_time = 2.0
+    setup_steps = int(setup_time // dt)
+    push_steps = int(push_time // dt)
+
+    # Set up arrays to store the simulation trace
+    turtle_states = jnp.zeros((setup_steps + push_steps, 2, 6))
+    turtle_states = turtle_states.at[0].set(initial_turtle_state)
+    box_states = jnp.zeros((setup_steps + push_steps, 6))
+    box_states = box_states.at[0].set(initial_box_state)
+
+    # Simulate the setup phase
+    for t in range(setup_steps):
+        control_input = jnp.zeros((n_turtles, 2))
+        for i in range(n_turtles):
+            control_input = control_input.at[i, 1].set(
+                plan[i, 0] - turtle_states[t, i, 2]
+            )
+
+        new_turtle_state, new_box_state = multi_agent_box_dynamics_step(
+            turtle_states[t],
+            box_states[t],
+            control_input,
+            low_level_control_gains,
+            mu_turtle_ground,
+            mu_box_ground,
+            mu_box_turtle,
+            box_mass,
+            turtle_mass,
+            box_size,
+            chassis_radius,
+            dt,
+            n_turtles,
+        )
+        turtle_states = turtle_states.at[t + 1].set(new_turtle_state)
+        box_states = box_states.at[t + 1].set(new_box_state)
+
+    # Simulate the push phase
+    for t in range(setup_steps, setup_steps + push_steps):
+        control_input = plan[:, 1:]
+        new_turtle_state, new_box_state = multi_agent_box_dynamics_step(
+            turtle_states[t],
+            box_states[t],
+            control_input,
+            low_level_control_gains,
+            mu_turtle_ground,
+            mu_box_ground,
+            mu_box_turtle,
+            box_mass,
+            turtle_mass,
+            box_size,
+            chassis_radius,
+            dt,
+            n_turtles,
+        )
+        turtle_states = turtle_states.at[t + 1].set(new_turtle_state)
+        box_states = box_states.at[t + 1].set(new_box_state)
+
+    # Return the trace of box and turtlebot states
+    return turtle_states, box_states
