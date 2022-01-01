@@ -1,4 +1,7 @@
+import sys
+
 import jax
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
 from architect.optimization import VarianceRegularizedOptimizer
@@ -24,7 +27,7 @@ def run_optimizer():
 
     # Create the optimizer
     variance_weight = 0.1
-    sample_size = 2048
+    sample_size = 4096
     vr_opt = VarianceRegularizedOptimizer(
         mam_design_problem, variance_weight, sample_size
     )
@@ -35,6 +38,7 @@ def run_optimizer():
     print("==================================")
     print(f"Success? {success}! Message: {msg}")
     print("----------------------------------")
+    jnp.set_printoptions(threshold=sys.maxsize)
     print(f"Optimal design parameters:\n{dp_opt}")
     print(f"Optimal mean cost: {cost_mean}")
     print(f"Optimal cost variance: {cost_var}")

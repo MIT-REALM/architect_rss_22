@@ -50,8 +50,6 @@ def make_mam_design_problem(
     )
 
     # Define the design parameters
-    layer_widths = [15, 6]
-    prng_key = jax.random.PRNGKey(0)
     prng_key, subkey = jax.random.split(prng_key)
     dp = MAMDesignParameters(subkey, layer_widths)
 
