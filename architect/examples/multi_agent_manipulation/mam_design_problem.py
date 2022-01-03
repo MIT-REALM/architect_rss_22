@@ -33,9 +33,9 @@ def make_mam_design_problem(
     box_mass_range = jnp.array([0.9, 1.1])
     desired_box_pose_range = jnp.array(
         [
-            [0.0, 1.0],
-            [0.0, 1.0],
-            [-1.0, 1.0],
+            [0.0, 0.3],
+            [0.0, 0.3],
+            [-jnp.pi / 4.0, jnp.pi / 4.0],
         ]
     )
     turtlebot_displacement_covariance = (0.1 ** 2) * jnp.eye(3)

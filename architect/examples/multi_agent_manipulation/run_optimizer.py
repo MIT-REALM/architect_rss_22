@@ -20,14 +20,14 @@ def run_optimizer():
     prng_key = jax.random.PRNGKey(0)
 
     # Make the design problem
-    layer_widths = [15, 32, 32, 6]
+    layer_widths = [15, 6]
     dt = 0.01
     prng_key, subkey = jax.random.split(prng_key)
     mam_design_problem = make_mam_design_problem(layer_widths, dt, subkey)
 
     # Create the optimizer
     variance_weight = 0.1
-    sample_size = 4096
+    sample_size = 1024
     vr_opt = VarianceRegularizedOptimizer(
         mam_design_problem, variance_weight, sample_size
     )

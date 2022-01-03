@@ -552,8 +552,8 @@ def mam_simulate_single_push_two_turtles(
     # the bottom and left faces of the box, but with some exogenous offset.
     initial_turtle_state = jnp.array(
         [
-            [-(box_size / 2 + chassis_radius), -0.1, 0.0, 0.0, 0.0, 0.0],
-            [-0.1, -(box_size / 2 + chassis_radius), jnp.pi / 2, 0.0, 0.0, 0.0],
+            [-(box_size / 2 + chassis_radius), 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, -(box_size / 2 + chassis_radius), jnp.pi / 2, 0.0, 0.0, 0.0],
         ]
     )
     for i in range(n_turtles):
