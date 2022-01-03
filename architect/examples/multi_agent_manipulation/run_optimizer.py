@@ -20,14 +20,14 @@ def run_optimizer():
     prng_key = jax.random.PRNGKey(0)
 
     # Make the design problem
-    layer_widths = [15, 6]
+    layer_widths = (2 * 3 + 3, 32, 2 * 2)
     dt = 0.01
     prng_key, subkey = jax.random.split(prng_key)
     mam_design_problem = make_mam_design_problem(layer_widths, dt, subkey)
 
     # Create the optimizer
     variance_weight = 0.1
-    sample_size = 1024
+    sample_size = 128
     vr_opt = VarianceRegularizedOptimizer(
         mam_design_problem, variance_weight, sample_size
     )
@@ -45,9 +45,7 @@ def run_optimizer():
 
     # Run a simulation for plotting the optimal solution
     exogenous_sample = mam_design_problem.exogenous_params.sample(prng_key)
-    (turtle_states, box_states) = mam_design_problem.simulator(
-        dp_opt, exogenous_sample
-    )
+    (turtle_states, box_states) = mam_design_problem.simulator(dp_opt, exogenous_sample)
 
     # Plot the results
     plot_box_trajectory(box_states, 0.5, 20, plt.gca())

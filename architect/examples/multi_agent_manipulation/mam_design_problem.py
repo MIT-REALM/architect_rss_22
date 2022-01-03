@@ -1,4 +1,4 @@
-from typing import List
+from typing import Tuple
 
 import jax
 import jax.numpy as jnp
@@ -12,7 +12,7 @@ from .mam_simulator import mam_simulate_single_push_two_turtles
 
 
 def make_mam_design_problem(
-    layer_widths: List[int], dt: float, prng_key: PRNGKeyArray
+    layer_widths: Tuple[int], dt: float, prng_key: PRNGKeyArray
 ) -> DesignProblem:
     """Make an instance of the multi-agent manipulation design problem.
     Uses two turtlebots.
@@ -33,9 +33,9 @@ def make_mam_design_problem(
     box_mass_range = jnp.array([0.9, 1.1])
     desired_box_pose_range = jnp.array(
         [
-            [0.0, 0.3],
-            [0.0, 0.3],
-            [-jnp.pi / 4.0, jnp.pi / 4.0],
+            [0.0, 1.0],
+            [0.0, 1.0],
+            [-0.0 * jnp.pi / 4.0, 0.0 * jnp.pi / 4.0],
         ]
     )
     turtlebot_displacement_covariance = (0.1 ** 2) * jnp.eye(3)

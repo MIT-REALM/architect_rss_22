@@ -1,7 +1,7 @@
 """Design parameters are the "controllable" aspects of the design; these are what we
 optimize when do design.
 """
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import jax.numpy as jnp
 import numpy as np
@@ -76,7 +76,7 @@ class DesignParameters(object):
         return np.array(self._values)
 
     @property
-    def bounds(self) -> List[Tuple[Optional[float], Optional[float]]]:
+    def bounds(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
         """Returns the bounds on the design parameters as a list. Each element
         of the list should be None (indicates no bound) or a tuple of (lower, upper)
         bounds.

@@ -1,4 +1,5 @@
-from typing import List
+from typing import Tuple
+
 import jax.numpy as jnp
 
 from .mam_simulator import mam_simulate_single_push_two_turtles
@@ -7,7 +8,7 @@ from .mam_simulator import mam_simulate_single_push_two_turtles
 def mam_cost_push_two_turtles(
     design_params: jnp.ndarray,
     exogenous_sample: jnp.ndarray,
-    layer_widths: List[int],
+    layer_widths: Tuple[int],
     dt: float,
 ) -> jnp.ndarray:
     """Compute the cost based on given beacon locations.

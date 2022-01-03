@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import Sequence, Tuple, Optional
 
 from architect.design import DesignParameters
 
@@ -21,7 +21,7 @@ class AGVDesignParameters(DesignParameters):
         super(AGVDesignParameters, self).__init__(6, names)
 
     @property
-    def bounds(self) -> List[Tuple[Optional[float], Optional[float]]]:
+    def bounds(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
         """Returns the bounds on the design parameters as a list. Each element
         of the list should be None (indicates no bound) or a tuple of (lower, upper)
         bounds.

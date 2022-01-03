@@ -229,7 +229,7 @@ def calc_box_turtle_contact_wrench(
     return box_wrench, turtle_wrench
 
 
-# @jax.jit
+@jax.jit
 def turtlebot_dynamics_step(
     current_state: jnp.ndarray,
     control_input: jnp.ndarray,
@@ -292,6 +292,92 @@ def turtlebot_dynamics_step(
 
 
 @jax.jit
+def evaluate_quadratic_spline(
+    start_pt: jnp.ndarray,
+    control_pt: jnp.ndarray,
+    end_pt: jnp.ndarray,
+    t: jnp.ndarray,
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """
+    Evaluate the quadratic spline defined by the given points at the specified time t.
+    This curve starts at start_pt (t=0) and ends at end_pt (t=1) and is continuously
+    differentiable.
+
+    The position along the curve at time t [0, 1] is given by
+
+        p(t) = (1 - t)^2 * start_pt + 2 * (1 - t) * t * control_pt + t ^ 2 * end_pt
+
+    the tangent velocity is given by
+
+        v(t) = 2 * (1 - t) * (control_pt - start_pt) + 2 * t * (end_pt - control_pt)
+
+    args:
+        start_pt: the starting point of the spline
+        control_pt: the control point of the spline
+        end_pt: the end point of the spline.
+        t: the time at which to evaluate the curve. Must satisfy 0 <= t <= 1
+    returns:
+        the position and velocity along the curve at the specified time
+    """
+    # Compute position
+    position = (1 - t) ** 2 * start_pt + 2 * (1 - t) * t * control_pt + t ** 2 * end_pt
+    # Compute velocity
+    velocity = 2 * (1 - t) * (control_pt - start_pt) + 2 * t * (end_pt - control_pt)
+
+    return position, velocity
+
+
+@jax.jit
+def turtlebot_position_velocity_tracking_controller(
+    turtle_state: jnp.ndarray,
+    tracking_position: jnp.ndarray,
+    tracking_velocity: jnp.ndarray,
+    high_level_control_gains: jnp.ndarray,
+) -> jnp.ndarray:
+    """
+    Evaluate a tracking controller that steers the turtlebot to follow the indicated
+    position and velocity.
+
+    args:
+        turtle_state: the current state (x, y, theta, vx, vy, omega) of the turtlebot
+        tracking_position: the (x, y) position to track
+        tracking_velocity: the (vx, vy) velocity to track
+        high_level_control_gains: (2,) array of linear feedback gains for the tracking
+            control law.
+    returns:
+        an array of control inputs (v, omega)
+    """
+    # Compute desired heading and velocity
+    tracking_theta = jax.lax.atan2(tracking_velocity[1], tracking_velocity[0])
+    tracking_v = softnorm(tracking_velocity)
+
+    # Also compute the along-track and cross-track error
+    turtle_position = turtle_state[:2]
+    position_error = turtle_position - tracking_position
+    turtle_theta = turtle_state[2]
+    turtle_tangent = jnp.array([jnp.cos(turtle_theta), jnp.sin(turtle_theta)])
+    R = rotation_matrix_2d(jnp.array(jnp.pi / 2.0))
+    turtle_normal = R @ turtle_tangent
+    # Along-track is positive if the turtlebot is ahead
+    along_track_error = turtle_tangent.dot(position_error)
+    # Cross-track is positive if the turtlebot is to the left
+    cross_track_error = turtle_normal.dot(position_error)
+
+    # Extract control gains
+    k_v, k_w = high_level_control_gains
+
+    # v is set based on tracking velocity and along-track error
+    turtle_velocity = turtle_state[3:5]
+    turtle_v = softnorm(turtle_velocity)
+    v = -0.0 * (turtle_v - tracking_v) - k_v * along_track_error
+
+    # w is set based on the cross-track error and the heading difference
+    w = -0.0 * (turtle_theta - tracking_theta) - k_w * cross_track_error
+
+    return jnp.stack((v, w))
+
+
+@jax.jit
 def box_dynamics_step(
     current_state: jnp.ndarray,
     external_wrench: jnp.ndarray,
@@ -337,8 +423,11 @@ def box_dynamics_step(
 def multi_agent_box_dynamics_step(
     current_turtlebot_states: jnp.ndarray,
     current_box_state: jnp.ndarray,
-    control_input: jnp.ndarray,
+    start_pts: jnp.ndarray,
+    control_pts: jnp.ndarray,
+    end_pts: jnp.ndarray,
     low_level_control_gains: jnp.ndarray,
+    high_level_control_gains: jnp.ndarray,
     mu_turtle_ground: jnp.ndarray,
     mu_box_ground: jnp.ndarray,
     mu_box_turtle: jnp.ndarray,
@@ -346,6 +435,8 @@ def multi_agent_box_dynamics_step(
     turtle_mass: jnp.ndarray,
     box_size: jnp.ndarray,
     turtle_radius: jnp.ndarray,
+    t: jnp.ndarray,
+    t_final: jnp.ndarray,
     dt: float,
     n_turtles: int,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -355,9 +446,13 @@ def multi_agent_box_dynamics_step(
         current_turtlebot_states: (n_turtles, 6) array of (x, y, theta, vx, vy, omega)
                                  state for each of n_turtles turtlebots
         current_box_state: (6,) array of (x, y, theta, vx, vy, omega) state of the box
-        control_input: (n_turtles, 2) array of (v_d, omega_d) desired velocities for
-                       each turtlebot
-        low_level_control_gains: (2,) array of control gains for v and omega.
+        start_pts: (n_turtles, 2) array of (x, y) spline start points for each turtlebot
+        control_pts: (n_turtles, 2) array of (x, y) spline control points for each
+                     turtlebot
+        end_pts: (n_turtles, 2) array of (x, y) spline end points for each turtlebot
+        low_level_control_gains: (2,) array of control gains for tracking commanded
+            v and omega.
+        high_level_control_gains: (2,) array of control gains for tracking a path.
         mu_turtle_ground: 1-element 0-dimensional array of friction coefficient between
                           turtlebot and ground
         mu_box_ground: 1-element 0-dimensional array of friction coefficient between
@@ -368,6 +463,8 @@ def multi_agent_box_dynamics_step(
         turtle_mass: 1-element 0-dimensional array of turtlebot mass
         box_size: 1-element 0-dimensional array of box side length
         turtle_radius: 1-element 0-dimensional array of robot chassis radius
+        t: 1-element 0-dimensional array of current time
+        t_final: 1-element 0-dimensional array of final time for the spline.
         dt: the timestep at which to simulate
         n_turtles: integer number of turtlebots
 
@@ -389,11 +486,23 @@ def multi_agent_box_dynamics_step(
         # Accumulate the box wrench
         total_box_wrench += box_contact_wrench
 
+        # Get the control for this turtlebot based on the spline
+        spline_t = jnp.minimum(t / t_final, 1.0)
+        tracking_position, tracking_velocity = evaluate_quadratic_spline(
+            start_pts[i], control_pts[i], end_pts[i], spline_t
+        )
+        control_input = turtlebot_position_velocity_tracking_controller(
+            current_turtlebot_states[i],
+            tracking_position,
+            tracking_velocity,
+            high_level_control_gains,
+        )
+
         # Update the state of the turtlebot
         new_turtlebot_states = new_turtlebot_states.at[i].set(
             turtlebot_dynamics_step(
                 current_turtlebot_states[i],
-                control_input[i],
+                control_input,
                 low_level_control_gains,
                 turtle_i_contact_wrench,
                 mu_turtle_ground,
@@ -417,9 +526,9 @@ def multi_agent_box_dynamics_step(
 
 
 @jax.jit
-def turtle_nn_controller(
+def turtle_nn_planner(
     controller_params: List[Tuple[jnp.ndarray, jnp.ndarray]],
-    turtle_states: jnp.ndarray,
+    turtle_position: jnp.ndarray,
     final_box_location: jnp.ndarray,
 ):
     """
@@ -432,17 +541,15 @@ def turtle_nn_controller(
                 Weights should be (n_out, n_in) arrays and corresponding biases should
                 be (n_out). The first layer should have n_in = n_turtle * 6 + 3, and the
                 last layer should have n_out = n_turtle * 3
-        turtle_states: (n_turtle, 6) array of current turtlebot states in the current
-                       box frame
+        turtle_position: (n_turtle, 3) array of current turtlebot (x, y, theta) in the
+                         current box frame
         final_box_location: (3,) array of desired x, y, and theta for the box, expressed
                             in the current box frame.
     returns
-        an (n_turtles, 3) array of (theta_0, v, omega) commands for each turtlebot,
-        which will be executed by first rotating each turtlebot until theta = theta_0,
-        then moving for with commands (v, omega).
+        an (n_turtles, 2) array of (x, y) spline control points for each turtlebot.
     """
     # Concatenate all inputs into a single feature array
-    activations = jnp.concatenate((turtle_states.reshape(-1), final_box_location))
+    activations = jnp.concatenate((turtle_position.reshape(-1), final_box_location))
 
     # Loop through all layers except the final one
     for weight, bias in controller_params[:-1]:
@@ -456,33 +563,10 @@ def turtle_nn_controller(
     return output
 
 
-def renormalize_plan(plan: jnp.ndarray):
-    """Re-scale the plan to acceptable control ranges.
-
-    args:
-        plan: output of turtle_nn_controller, reshaped to (n_turtles, 3)
-    returns:
-        a renormalized plan
-    """
-    # Scale velocity to be between 0 and 2.0
-    max_v = 2.0
-    plan = plan.at[:, 1].set(max_v * jax.nn.sigmoid(plan[:, 1]))
-
-    # Scale angular velocity
-    max_w = jnp.pi
-    plan = plan.at[:, 2].set(max_w * jnp.tanh(plan[:, 2]))
-
-    # Scale heading to be between -pi/2 and pi/2
-    max_theta = jnp.pi / 2.0
-    plan = plan.at[:, 0].set(max_theta * jnp.tanh(plan[:, 0]))
-
-    return plan
-
-
 def mam_simulate_single_push_two_turtles(
     design_params: jnp.ndarray,
     exogenous_sample: jnp.ndarray,
-    layer_widths: List[int],
+    layer_widths: Tuple[int],
     dt: float,
 ):
     """Simulate the multi-agent manipulation system executing a single push lasting 1
@@ -514,12 +598,13 @@ def mam_simulate_single_push_two_turtles(
     low_level_control_gains = jnp.array([5.0, 0.1])
     n_turtles = 2
 
-    # Extract the weights and biases (design parameters)
+    # Extract the network weights and biases and control gains (design parameters)
+    high_level_control_gains = design_params[:2]
     controller_params = []
     n_layers = len(layer_widths)
-    assert layer_widths[0] == n_turtles * 6 + 3
-    assert layer_widths[-1] == n_turtles * 3
-    start_index = 0
+    assert layer_widths[0] == n_turtles * 3 + 3
+    assert layer_widths[-1] == n_turtles * 2
+    start_index = 2
     for i in range(1, n_layers):
         input_width = layer_widths[i - 1]
         output_width = layer_widths[i]
@@ -564,15 +649,20 @@ def mam_simulate_single_push_two_turtles(
     # This random displacement may have caused some overlap between the turtlebots and
     # the box, so simulate for some settling time to let them move out of overlap,
     # then reset the coordinate system to the box pose
+    settle_start_pts = initial_turtle_state[:, :2]
+    settle_control_pts = initial_turtle_state[:, :2]
+    settle_end_pts = initial_turtle_state[:, :2]
     settle_time = 0.5
     settle_steps = int(settle_time // dt)
-    for _ in range(settle_steps):
-        control_input = jnp.zeros((n_turtles, 2))
+    for t in range(settle_steps):
         initial_turtle_state, initial_box_state = multi_agent_box_dynamics_step(
             initial_turtle_state,
             initial_box_state,
-            control_input,
+            settle_start_pts,
+            settle_control_pts,
+            settle_end_pts,
             low_level_control_gains,
+            high_level_control_gains,
             mu_turtle_ground,
             mu_box_ground,
             mu_box_turtle,
@@ -580,6 +670,8 @@ def mam_simulate_single_push_two_turtles(
             turtle_mass,
             box_size,
             chassis_radius,
+            t * dt,
+            settle_time,
             dt,
             n_turtles,
         )
@@ -600,61 +692,47 @@ def mam_simulate_single_push_two_turtles(
     new_turtle_xy = new_turtle_xy.T
     initial_turtle_state = initial_turtle_state.at[:, :2].set(new_turtle_xy)
 
-    # Now get the push angle, speed, and angular velocity commands from the network
-    plan = turtle_nn_controller(
-        controller_params, initial_turtle_state, desired_box_pose
+    # Set the spline start points based on the initial conditions
+    start_pts = initial_turtle_state[:, :2]
+    R_WBfinal = rotation_matrix_2d(theta)
+    R_BfinalW = R_WBfinal.T  # type: ignore
+    end_pts_Bfinal = jnp.array(
+        [
+            [-(box_size / 2 + chassis_radius), 0.0],
+            [0.0, -(box_size / 2 + chassis_radius)],
+        ]
     )
-    plan = plan.reshape(n_turtles, 3)
-    plan = renormalize_plan(plan)
+    end_pts = desired_box_pose[:2] + R_BfinalW @ end_pts_Bfinal
 
-    # Simulate! This simulation has several phases:
-    #   1.) Set v = 0 and omega = theta_d - theta for setup_time
-    #   2.) Set v and omega based on the plan for push_time.
-    setup_time = 0.5
-    push_time = 2.0
-    setup_steps = int(setup_time // dt)
+    # Now get the spline control points from the network (we treat these as additions
+    # to the midpoint of the start and end points).
+    control_pts = turtle_nn_planner(
+        controller_params, initial_turtle_state[:, :3], desired_box_pose
+    )
+    control_pts = control_pts.reshape(n_turtles, 2)
+    control_pts = (start_pts + end_pts) / 2.0 + control_pts
+
+    # Simulate! This simulation proceeds as follows:
+    #   2.) Set v and omega based on the spline for push_time.
+    push_time = 4.0
     push_steps = int(push_time // dt)
 
     # Set up arrays to store the simulation trace
-    turtle_states = jnp.zeros((setup_steps + push_steps, 2, 6))
+    turtle_states = jnp.zeros((push_steps, 2, 6))
     turtle_states = turtle_states.at[0].set(initial_turtle_state)
-    box_states = jnp.zeros((setup_steps + push_steps, 6))
+    box_states = jnp.zeros((push_steps, 6))
     box_states = box_states.at[0].set(initial_box_state)
 
-    # Simulate the setup phase
-    for t in range(setup_steps):
-        control_input = jnp.zeros((n_turtles, 2))
-        for i in range(n_turtles):
-            control_input = control_input.at[i, 1].set(
-                plan[i, 0] - turtle_states[t, i, 2]
-            )
-
-        new_turtle_state, new_box_state = multi_agent_box_dynamics_step(
-            turtle_states[t],
-            box_states[t],
-            control_input,
-            low_level_control_gains,
-            mu_turtle_ground,
-            mu_box_ground,
-            mu_box_turtle,
-            box_mass,
-            turtle_mass,
-            box_size,
-            chassis_radius,
-            dt,
-            n_turtles,
-        )
-        turtle_states = turtle_states.at[t + 1].set(new_turtle_state)
-        box_states = box_states.at[t + 1].set(new_box_state)
-
     # Simulate the push phase
-    for t in range(setup_steps, setup_steps + push_steps):
-        control_input = plan[:, 1:]
+    for t in range(push_steps):
         new_turtle_state, new_box_state = multi_agent_box_dynamics_step(
             turtle_states[t],
             box_states[t],
-            control_input,
+            start_pts,
+            control_pts,
+            end_pts,
             low_level_control_gains,
+            high_level_control_gains,
             mu_turtle_ground,
             mu_box_ground,
             mu_box_turtle,
@@ -662,6 +740,8 @@ def mam_simulate_single_push_two_turtles(
             turtle_mass,
             box_size,
             chassis_radius,
+            t * dt,
+            push_time * 0.5,
             dt,
             n_turtles,
         )
