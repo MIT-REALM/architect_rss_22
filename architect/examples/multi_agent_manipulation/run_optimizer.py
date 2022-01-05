@@ -27,7 +27,7 @@ def run_optimizer():
 
     # Create the optimizer
     variance_weight = 0.1
-    sample_size = 128
+    sample_size = 1024
     vr_opt = VarianceRegularizedOptimizer(
         mam_design_problem, variance_weight, sample_size
     )
