@@ -592,9 +592,9 @@ def mam_simulate_single_push_two_turtles(
         location
     """
     # Set constants
-    box_size = jnp.array(0.5)
-    turtle_mass = jnp.array(1.0)
-    chassis_radius = jnp.array(0.1)
+    box_size = jnp.array(0.61)
+    turtle_mass = jnp.array(2.7)
+    chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
     n_turtles = 2
 

@@ -28,8 +28,8 @@ def test_turtlebot_dynamics():
     dt = 0.01
     n_steps = int(T // dt)
     mu = jnp.array(1.0)
-    mass = jnp.array(1.0)
-    chassis_radius = jnp.array(0.1)
+    mass = jnp.array(2.7)
+    chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
     initial_state = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     states = jnp.zeros((n_steps, 6))
@@ -59,7 +59,7 @@ def test_turtlebot_dynamics():
 def test_signed_distance():
     # Test signed distance calculation
     box_pose = jnp.array([-0.4, 0.2, -0.1])
-    box_size = jnp.array(0.5)
+    box_size = jnp.array(0.61)
 
     turtle_x = jnp.linspace(-1, 1, 100)
     turtle_z = jnp.linspace(-1, 1, 100)
@@ -67,7 +67,7 @@ def test_signed_distance():
     turtle_X, turtle_Z = jnp.meshgrid(turtle_x, turtle_z)
     turtle_XZ = jnp.stack((turtle_X, turtle_Z)).reshape(2, 10000).T
 
-    chassis_radius = jnp.array(0.1)
+    chassis_radius = jnp.array(0.08)
     f_phi = lambda turtle_pose: box_turtle_signed_distance(
         box_pose, turtle_pose, box_size, chassis_radius
     )
@@ -93,7 +93,7 @@ def test_box_dynamics():
     n_steps = int(T // dt)
     mu = jnp.array(1.0)
     box_mass = jnp.array(1.0)
-    box_size = jnp.array(0.5)
+    box_size = jnp.array(0.61)
     initial_box_state = jnp.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
     box_states = jnp.zeros((n_steps, 6))
     box_states = box_states.at[0].set(initial_box_state)
@@ -121,13 +121,13 @@ def test_turtle_spline_following():
     T = 10.0
     dt = 0.01
     n_steps = int(T // dt)
-    mu_box_turtle = jnp.array(0.1)
+    mu_box_turtle = jnp.array(0.2)
     mu_turtle_ground = jnp.array(0.7)
     mu_box_ground = jnp.array(0.5)
-    turtle_mass = jnp.array(1.0)
+    turtle_mass = jnp.array(2.7)
     box_mass = jnp.array(1.0)
-    box_size = jnp.array(0.5)
-    chassis_radius = jnp.array(0.1)
+    box_size = jnp.array(0.61)
+    chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
     high_level_control_gains = jnp.array([12.0, 5.0])
     initial_turtle_state = jnp.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
@@ -185,13 +185,13 @@ def test_box_turtle_dynamics():
     T = 10.0
     dt = 0.01
     n_steps = int(T // dt)
-    mu_box_turtle = jnp.array(0.1)
+    mu_box_turtle = jnp.array(0.2)
     mu_turtle_ground = jnp.array(0.7)
     mu_box_ground = jnp.array(0.5)
-    turtle_mass = jnp.array(1.0)
+    turtle_mass = jnp.array(2.7)
     box_mass = jnp.array(1.0)
-    box_size = jnp.array(0.5)
-    chassis_radius = jnp.array(0.1)
+    box_size = jnp.array(0.61)
+    chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
     high_level_control_gains = jnp.array([12.0, 5.0])
     initial_turtle_state = jnp.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
@@ -250,13 +250,13 @@ def test_box_two_turtles_dynamics():
     T = 10.0
     dt = 0.01
     n_steps = int(T // dt)
-    mu_box_turtle = jnp.array(0.1)
+    mu_box_turtle = jnp.array(0.2)
     mu_turtle_ground = jnp.array(0.7)
     mu_box_ground = jnp.array(0.5)
-    turtle_mass = jnp.array(1.0)
+    turtle_mass = jnp.array(2.7)
     box_mass = jnp.array(1.0)
-    box_size = jnp.array(0.5)
-    chassis_radius = jnp.array(0.1)
+    box_size = jnp.array(0.61)
+    chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
     high_level_control_gains = jnp.array([2.0, 5.0])
     initial_turtle_state = jnp.array(

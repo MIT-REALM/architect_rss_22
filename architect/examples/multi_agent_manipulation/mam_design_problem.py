@@ -27,7 +27,7 @@ def make_mam_design_problem(
         a DesignProblem
     """
     # Define the exogenous parameters
-    mu_box_turtle_range = jnp.array([0.05, 0.2])
+    mu_box_turtle_range = jnp.array([0.1, 0.3])
     mu_turtle_ground_range = jnp.array([0.6, 0.8])
     mu_box_ground_range = jnp.array([0.4, 0.6])
     box_mass_range = jnp.array([0.9, 1.1])
