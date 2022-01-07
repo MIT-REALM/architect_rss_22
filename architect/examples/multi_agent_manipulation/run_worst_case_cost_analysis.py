@@ -38,7 +38,7 @@ def run_analysis():
 
     # Create the analyzer
     sample_size = 500
-    block_size = 100
+    block_size = 1000
     worst_case_cost_analyzer = WorstCaseCostAnalyzer(
         mam_design_problem, sample_size, block_size
     )
