@@ -1,12 +1,10 @@
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import numpy as np
 
-from architect.examples.multi_agent_manipulation.mam_design_parameters import (
-    MAMDesignParameters,
-)
-from architect.examples.multi_agent_manipulation.mam_exogenous_parameters import (
-    MAMExogenousParameters,
+from architect.examples.multi_agent_manipulation.mam_design_problem import (
+    make_mam_design_problem,
 )
 from architect.examples.multi_agent_manipulation.mam_plotting import (
     plot_box_trajectory,
@@ -323,41 +321,33 @@ def test_box_two_turtles_dynamics():
 
 def test_push():
     # Test mam_simulate_single_push_two_turtles function
-    dt = 0.01
-    mu_box_turtle_range = jnp.array([0.05, 0.2])
-    mu_turtle_ground_range = jnp.array([0.6, 0.8])
-    mu_box_ground_range = jnp.array([0.4, 0.6])
-    box_mass_range = jnp.array([0.9, 1.1])
-    desired_box_pose_range = jnp.array(
-        [
-            [0.0, 1.0],
-            [0.0, 1.0],
-            [-1.0, 1.0],
-        ]
-    )
-    turtlebot_displacement_covariance = (0.1 ** 2) * jnp.eye(3)
-    exogenous_params = MAMExogenousParameters(
-        mu_turtle_ground_range,
-        mu_box_ground_range,
-        mu_box_turtle_range,
-        box_mass_range,
-        desired_box_pose_range,
-        turtlebot_displacement_covariance,
-        2,
-    )
-
-    layer_widths = (2 * 3 + 3, 4)
     prng_key = jax.random.PRNGKey(0)
+
+    # Make the design problem
+    layer_widths = (2 * 3 + 3, 32, 2 * 2)
+    dt = 0.01
     prng_key, subkey = jax.random.split(prng_key)
-    design_params = MAMDesignParameters(subkey, layer_widths)
+    mam_design_problem = make_mam_design_problem(layer_widths, dt, subkey)
+
+    logfile = (
+        "logs/multi_agent_manipulation/real_turtle_dimensions/"
+        "design_optimization_512_samples_0p5x0p5xpi_4_target_"
+        "9x32x4_network_spline_1e-1_variance_weight_solution.csv"
+    )
+    design_param_values = jnp.array(
+        np.loadtxt(
+            logfile,
+            delimiter=",",
+        )
+    )
 
     # Sample exogenous parameters
     prng_key, subkey = jax.random.split(prng_key)
-    exogenous_sample = exogenous_params.sample(subkey)
+    exogenous_sample = mam_design_problem.exogenous_params.sample(subkey)
 
     # Simulate
     turtle_states, box_states = mam_simulate_single_push_two_turtles(
-        design_params.get_values(),
+        design_param_values,
         exogenous_sample,
         layer_widths,
         dt,
@@ -370,6 +360,8 @@ def test_push():
     make_box_patches(desired_box_pose, 1.0, 0.5, plt.gca(), hatch=True)
     plt.xlabel("x")
     plt.ylabel("y")
+    plt.xlim([-0.75, 1.0])
+    plt.ylim([-0.75, 1.0])
     plt.gca().set_aspect("equal")
     plt.show()
 
