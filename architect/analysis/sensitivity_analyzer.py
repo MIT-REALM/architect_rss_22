@@ -99,32 +99,41 @@ class SensitivityAnalyzer(object):
 
         # Fit a generalized extreme value distribution to these data using PyMC3
         # (a Bayesian analysis using MCMC for inference).
-        # Source for snippet:
-        # https://discourse.pymc.io/t/generalized-extreme-value-analysis-in-pymc3/7433
+        # Source for snippet from PR#5085 on the PyMC3 GitHub
         with pm.Model() as model_gevd:  # noqa: F841
             mu = pm.Normal("mu", mu=0, sigma=10)
-            sigma = pm.Normal("sigma", mu=1.0, sigma=10)
+            sigma = pm.Exponential("sigma", lam=1.0)
+            # sigma = pm.TruncatedNormal("sigma", mu=1, sigma=10, lower=0.0)
             xi = pm.Normal("xi", mu=0, sigma=10)
 
-            def gev_logp(value):
+            def logp(value):
                 scaled = (value - mu) / sigma
-                logp = -(
-                    tt.log(sigma)
-                    + ((xi + 1) / xi) * tt.log1p(xi * scaled)
-                    + (1 + xi * scaled) ** (-1 / xi)
-                )
-                alpha = mu - sigma / xi
-                bounds = tt.switch(xi > 0, xi > alpha, xi < alpha)
-                return bound(logp, bounds, xi != 0)
 
-            gevd = pm.DensityDist("gevd", gev_logp, observed=block_maxes)  # noqa: F841
+                logp_expression = tt.switch(
+                    tt.isclose(xi, 0.0),
+                    -tt.log(sigma) - scaled - tt.exp(-scaled),
+                    -tt.log(sigma)
+                    - ((xi + 1) / xi) * tt.log1p(xi * scaled)
+                    - tt.pow(1 + xi * scaled, -1 / xi),
+                )
+                return bound(
+                    logp_expression,
+                    1 + xi * scaled > 0,
+                    sigma > 0,
+                )
+
+            # Make some guesses for starting parameters
+            mu_start = block_maxes.mean()
+            sigma_start = block_maxes.std()
+
+            gevd = pm.DensityDist("gevd", logp, observed=block_maxes)  # noqa: F841
             step = pm.NUTS()
             idata = pm.sample(
                 10000,
                 chains=4,
                 tune=3000,
                 step=step,
-                start={"mu": 1.0, "sigma": 1.0, "xi": -0.1},
+                start={"mu": mu_start, "sigma": sigma_start, "xi": -0.1},
                 return_inferencedata=True,
                 progressbar=True,
             )

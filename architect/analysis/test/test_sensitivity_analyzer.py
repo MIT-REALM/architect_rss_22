@@ -70,4 +70,4 @@ def test_SensitivityAnalyzer_analyze():
     xi = summary["mean"]["xi"]
     assert xi < 0.0, "should be in Weibull regime with upper-bounded support"
     upper_bound = mu - sigma / xi
-    assert jnp.isclose(upper_bound, 1.0, rtol=1e-3)
+    assert jnp.isclose(upper_bound, 1.0, rtol=1e-2)

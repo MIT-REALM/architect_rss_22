@@ -5,7 +5,7 @@ pytest
 flake8
 
 # Standard utility packages
-numpy
+numpy <= 1.21.5
 matplotlib
 seaborn
 pandas
@@ -17,6 +17,7 @@ tqdm
 scipy
 pymc3
 arviz
+aesara
 
 # Learning packages
 torch >= 1.9.0
