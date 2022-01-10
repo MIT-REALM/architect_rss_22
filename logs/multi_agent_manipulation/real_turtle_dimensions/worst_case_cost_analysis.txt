@@ -1,0 +1,17 @@
+WARNING:absl:No GPU/TPU found, falling back to CPU. (Set TF_CPP_MIN_LOG_LEVEL=0 and rerun for more info.)
+Multiprocess sampling (4 chains in 4 jobs)
+INFO:pymc3:Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [xi, sigma, mu]
+INFO:pymc3:NUTS: [xi, sigma, mu]
+Sampling 4 chains for 3_000 tune and 10_000 draw iterations (12_000 + 40_000 draws total) took 10 seconds.00/52000 00:09<00:00 Sampling 4 chains, 1 divergences]
+INFO:pymc3:Sampling 4 chains for 3_000 tune and 10_000 draw iterations (12_000 + 40_000 draws total) took 10 seconds.
+There was 1 divergence after tuning. Increase `target_accept` or reparameterize.
+ERROR:pymc3:There was 1 divergence after tuning. Increase `target_accept` or reparameterize.
+==================================
+Worst-case cost analysis of (500 blocks of size 1000) took 1991.3414682168514 s.
+Summary:
+        mean     sd  hdi_3%  hdi_97%  mcse_mean  mcse_sd  ess_bulk  ess_tail  r_hat
+mu     6.050  0.173   5.728    6.373      0.001    0.001   17092.0   20386.0    1.0
+xi     0.306  0.045   0.224    0.393      0.000    0.000   20826.0   20517.0    1.0
+sigma  3.245  0.146   2.980    3.523      0.001    0.001   18836.0   22290.0    1.0
+----------------------------------
