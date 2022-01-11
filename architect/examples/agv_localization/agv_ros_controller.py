@@ -4,16 +4,12 @@ from typing import Optional, Tuple
 
 import rospy
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Imu, LaserScan
 import tf
 from tf.transformations import euler_from_quaternion
 
 import jax
 import jax.numpy as jnp
 import pandas as pd
-import matplotlib.pyplot as plt
-import scipy.signal
-import scipy.spatial
 
 from architect.components.dynamics.dubins import (
     dubins_next_state,
@@ -105,7 +101,7 @@ class AGVROSController(object):
         self.R_WorldMap = self.R_MapWorld.T
         p_MapStart = jnp.array([trans[0], trans[1]]).reshape(2, 1)
         p_WorldStart_W = initial_state_mean[:2].reshape(2, 1)
-        p_StartWorld_W = - p_WorldStart_W
+        p_StartWorld_W = -p_WorldStart_W
         self.p_MapWorld = p_MapStart + self.R_MapWorld @ p_StartWorld_W
         self.theta_MapWorld = rotation[2]
 
@@ -128,9 +124,7 @@ class AGVROSController(object):
         self.command_publisher.publish(Twist())
         rospy.sleep(1.0)
 
-        self.log_df.to_csv(f"agv_controller_log.csv")
-
-        # Also plot the data to see what happened
+        self.log_df.to_csv("agv_controller_log.csv")
 
     def step(self) -> None:
         """
@@ -191,8 +185,10 @@ class AGVROSController(object):
         p_WorldTurtle = self.R_WorldMap @ p_WorldTurtle_Map
         theta_WorldTurtle = theta_MapTurtle - self.theta_MapWorld
 
-        odometry_state = jnp.array([p_WorldTurtle[0, 0], p_WorldTurtle[1, 0], theta_WorldTurtle])
-        
+        odometry_state = jnp.array(
+            [p_WorldTurtle[0, 0], p_WorldTurtle[1, 0], theta_WorldTurtle]
+        )
+
         ranges = beacon_range_measurements(
             odometry_state[:2],
             self.beacon_locations,

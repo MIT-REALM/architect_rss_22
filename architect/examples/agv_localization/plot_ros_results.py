@@ -32,9 +32,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Plot the observed navigation function over time
-    V = df[df.measurement == "V"].value.apply(
-        lambda x: ast.literal_eval(x)
-    )
+    V = df[df.measurement == "V"].value.apply(lambda x: ast.literal_eval(x))
     V = jnp.array(V)
 
     plt.plot(V)
