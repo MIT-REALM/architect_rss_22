@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     plt.plot(state_estimates[:, 0], state_estimates[:, 1], "o-")
 
-    # Plot the navigation function
+    # Overlay the navigation function
     x = jnp.linspace(-3, 0, 100)
     y = jnp.linspace(-1, 1, 100)
 
@@ -29,4 +29,13 @@ if __name__ == "__main__":
     V = jax.vmap(navigation_function, in_axes=0)(XY).reshape(100, 100)
     contours = plt.contourf(X, Y, V, levels=10)
 
+    plt.show()
+
+    # Plot the observed navigation function over time
+    V = df[df.measurement == "V"].value.apply(
+        lambda x: ast.literal_eval(x)
+    )
+    V = jnp.array(V)
+
+    plt.plot(V)
     plt.show()

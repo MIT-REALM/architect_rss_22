@@ -65,18 +65,6 @@ class AGVROSController(object):
         # create a publisher node to send velocity commands to turtlebot
         self.command_publisher = rospy.Publisher("cmd_vel", Twist, queue_size=10)
 
-        # Subscribe to the IMU topic to get the heading angle
-        self.heading_angle = None
-        self.heading_offset = None
-        rospy.Subscriber("/imu", Imu, self.imu_callback)
-
-        # Subscribe to the lidar scan to get the xy position
-        # (from which we fake beacons)
-        self.ranges = None
-        self.angles = None
-        self.p_WT = None
-        rospy.Subscriber("/scan", LaserScan, self.scan_callback)
-
         # Make sure to stop the turtlebot using a callback when this node gets shut down
         rospy.on_shutdown(self.on_shutdown)
 
@@ -104,16 +92,22 @@ class AGVROSController(object):
         # Navigation Initialization
         # ------------------------------
 
+        initial_state_mean = jnp.array([-2.2, 0.5, 0.0])
+        initial_state_covariance = 0.001 * jnp.eye(3)
+
         # Get the starting odometry measurement and find an offset that puts it at
         # the intended starting location
         (trans, rot) = self.listener.lookupTransform(
             self.odom_frame, self.base_frame, rospy.Time(0)
         )
         rotation = euler_from_quaternion(rot)
-        initial_odometry_state = jnp.array([trans[0], trans[1], rotation[2]])
-        initial_state_mean = jnp.array([-2.2, 0.5, 0.0])
-        initial_state_covariance = 0.001 * jnp.eye(3)
-        self.state_offset = initial_odometry_state - initial_state_mean
+        self.R_MapWorld = rotation_matrix_2d(rotation[2])
+        self.R_WorldMap = self.R_MapWorld.T
+        p_MapStart = jnp.array([trans[0], trans[1]]).reshape(2, 1)
+        p_WorldStart_W = initial_state_mean[:2].reshape(2, 1)
+        p_StartWorld_W = - p_WorldStart_W
+        self.p_MapWorld = p_MapStart + self.R_MapWorld @ p_StartWorld_W
+        self.theta_MapWorld = rotation[2]
 
         # Initialize the state estimate and error covariance for the EKF
         self.state_est_mean = initial_state_mean
@@ -144,9 +138,9 @@ class AGVROSController(object):
         """
         # Get the current observations
         observations = self.get_observations()
-        # # Update the state estimate using the EKF
-        # if observations is not None:
-        #     self.state_est_mean, self.state_est_cov = self.ekf_update(observations)
+        # Update the state estimate using the EKF
+        if observations is not None:
+            self.state_est_mean, self.state_est_cov = self.ekf_update(observations)
 
         # Get the control command based on the current state estimate
         # (this also returns the navigation function value at this point)
@@ -169,72 +163,12 @@ class AGVROSController(object):
         log_packet["value"] = V
         self.log_df = self.log_df.append(log_packet, ignore_index=True)
 
-        # # Predict the next state
-        # self.state_est_mean, self.state_est_cov = self.ekf_predict(control_command)
+        # Predict the next state
+        self.state_est_mean, self.state_est_cov = self.ekf_predict(control_command)
 
         # Execute the control command and hold for the desired frequency
         self.execute_command(control_command)
         self.rate.sleep()
-
-    def imu_callback(self, data):
-        # Extract the orientation and convert it to a heading angle
-        orientation_quat = data.orientation
-        orientation_quat = [
-            orientation_quat.x,
-            orientation_quat.y,
-            orientation_quat.z,
-            orientation_quat.w,
-        ]
-        orientation_euler = euler_from_quaternion(orientation_quat)
-
-        # If we have not saved an offset, save this reading as the offset
-        if self.heading_offset is None:
-            self.heading_offset = orientation_euler[2]
-
-        # Save the heading angle accounting for the offset
-        self.heading_angle = orientation_euler[2] - self.heading_offset
-
-    def scan_callback(self, data):
-        # We don't actually have beacons installed, so we have to fake them by
-        # using Lidar to find our location in a rectangular arena and use that
-        # state to compute what the beacon measurement would be (with noise)
-
-        # Start by getting the lidar measurements
-        angles = jnp.arange(
-            data.angle_min, data.angle_max + data.angle_increment, data.angle_increment
-        )
-        ranges = jnp.array(data.ranges)
-
-        # Get valid points
-        valid = ranges > 0.0
-        angles = angles[valid]
-        ranges = ranges[valid]
-
-        self.angles = angles
-        self.ranges = ranges
-
-        # Convert to cartesian
-        x = self.ranges * jnp.cos(self.angles)
-        y = self.ranges * jnp.sin(self.angles)
-
-        # Rotate to world frame using the estimated angle
-        try:
-            R_WT = rotation_matrix_2d(self.state_est_mean[2])
-            R_TW = R_WT.T
-        except AttributeError:
-            return  # happens if called before state_est_mean is set
-
-        p_TurtleLidar = jnp.vstack((x, y))
-        p_WLidar = R_TW @ p_TurtleLidar
-        p_WLidar = p_WLidar.T
-
-        # Get the upper right corner of the box relative to the turtle
-        p_TCorner_W = jnp.array([p_WLidar[:, 0].max(), p_WLidar[:, 1].max()])
-
-        # Hand-measured from box origin to corner
-        p_WCorner = jnp.array([0.38, 0.83])
-
-        self.p_WT = p_WCorner - p_TCorner_W
 
     def get_observations(self) -> Optional[jnp.ndarray]:
         """Get the observations from beacons. We don't actually have radio beacons
@@ -249,20 +183,35 @@ class AGVROSController(object):
             self.odom_frame, self.base_frame, rospy.Time(0)
         )
         rotation = euler_from_quaternion(rot)
-        odometry_state = jnp.array([trans[0], trans[1], rotation[2]])
-        odometry_state_corrected = odometry_state - self.state_offset
-        self.state_est_mean = odometry_state_corrected
-        print(self.state_est_mean)
+        theta_MapTurtle = rotation[2]
 
+        # Spatial algebra!
+        p_MapTurtle = jnp.array([trans[0], trans[1]]).reshape(2, 1)
+        p_WorldTurtle_Map = p_MapTurtle - self.p_MapWorld
+        p_WorldTurtle = self.R_WorldMap @ p_WorldTurtle_Map
+        theta_WorldTurtle = theta_MapTurtle - self.theta_MapWorld
+
+        odometry_state = jnp.array([p_WorldTurtle[0, 0], p_WorldTurtle[1, 0], theta_WorldTurtle])
+        
         ranges = beacon_range_measurements(
-            odometry_state_corrected[:2],
+            odometry_state[:2],
             self.beacon_locations,
             jnp.zeros(self.beacon_locations.shape[0]),
         )
 
-        heading = jnp.array([rotation[2]])
+        heading = jnp.array([odometry_state[2]])
 
-        return jnp.concatenate((heading, ranges))
+        observations = jnp.concatenate((heading, ranges))
+
+        # Add synthetic noise
+        self.prng_key, subkey = jax.random.split(self.prng_key)
+        observation_noise = jax.random.multivariate_normal(
+            subkey,
+            jnp.zeros(observations.shape[0]),
+            self.observation_noise_covariance,
+        )
+
+        return observations + observation_noise
 
     def compute_control_command(self) -> Tuple[jnp.ndarray, float]:
         """Compute the control command and navigation function value given the current
@@ -274,6 +223,11 @@ class AGVROSController(object):
         """
         control_command = navigate(self.state_est_mean, self.control_gains)
         V = navigation_function(self.state_est_mean[:2]).item()
+
+        # Stop if we're close enough
+        if V < 0.03:
+            control_command = 0.0 * control_command
+
         return control_command, V
 
     def execute_command(self, control_command: jnp.ndarray):
@@ -352,7 +306,7 @@ class AGVROSController(object):
 def main():
     # Initialize a controller and run it
     design_params = jnp.array([2.535058, 0.09306894, -1.6945883, -1.0, 0.0, -0.8280163])
-    dt = 0.5
+    dt = 0.1
     controller = AGVROSController(design_params, dt)
 
     while not rospy.is_shutdown():
