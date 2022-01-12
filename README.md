@@ -41,6 +41,8 @@ To install the environment for use in Jupyter notebooks, run
 python -m ipykernel install --user --name=architect_env
 ```
 
+Hardware experiments currently require `rospy` (must be installed separately) and other dependencies specified in `requirements_hw.txt`
+
 ## Warning: Research code may contain sharp edges!
 
 Architect is under active development as part of research in the [Reliable Autonomy Laboratory](realm.mit.edu) at MIT (REALM). We will aim to release a tagged version to coincide with each new publication and major advance in capabilities, but we currently cannot commit to a stable interface.

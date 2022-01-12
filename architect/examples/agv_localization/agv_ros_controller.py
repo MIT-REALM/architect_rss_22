@@ -29,7 +29,7 @@ from architect.examples.agv_localization.agv_simulator import (
 
 
 class AGVROSController(object):
-    """docstring for AGVROSController"""
+    """AGV Localization ROS controller"""
 
     def __init__(self, design_params: jnp.ndarray, control_period=0.5):
         super(AGVROSController, self).__init__()

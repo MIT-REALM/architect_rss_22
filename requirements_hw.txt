@@ -1,0 +1,3 @@
+# Image processing
+opencv-python
+apriltag
