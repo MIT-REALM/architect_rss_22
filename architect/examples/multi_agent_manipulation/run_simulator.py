@@ -191,7 +191,7 @@ def test_box_turtle_dynamics():
     box_size = jnp.array(0.61)
     chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
-    high_level_control_gains = jnp.array([12.0, 5.0])
+    high_level_control_gains = jnp.array([2.0, 5.0])
     initial_turtle_state = jnp.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
     initial_box_state = jnp.array([0.5, 0.1, 0.0, 0.0, 0.0, 0.0])
     turtle_states = jnp.zeros((n_steps, 1, 6))
@@ -321,7 +321,7 @@ def test_box_two_turtles_dynamics():
 
 def test_push():
     # Test mam_simulate_single_push_two_turtles function
-    prng_key = jax.random.PRNGKey(0)
+    prng_key = jax.random.PRNGKey(1)
 
     # Make the design problem
     layer_widths = (2 * 3 + 3, 32, 2 * 2)
@@ -367,6 +367,7 @@ def test_push():
 
 
 if __name__ == "__main__":
+    # test_signed_distance()
     # test_turtlebot_dynamics()
     # test_box_dynamics()
     # test_turtle_spline_following()

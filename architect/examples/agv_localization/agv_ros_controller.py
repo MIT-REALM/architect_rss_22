@@ -98,7 +98,7 @@ class AGVROSController(object):
         )
         rotation = euler_from_quaternion(rot)
         self.R_MapWorld = rotation_matrix_2d(rotation[2])
-        self.R_WorldMap = self.R_MapWorld.T
+        self.R_WorldMap = self.R_MapWorld.T  # type: ignore
         p_MapStart = jnp.array([trans[0], trans[1]]).reshape(2, 1)
         p_WorldStart_W = initial_state_mean[:2].reshape(2, 1)
         p_StartWorld_W = -p_WorldStart_W

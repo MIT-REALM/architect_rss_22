@@ -694,15 +694,16 @@ def mam_simulate_single_push_two_turtles(
 
     # Set the spline start points based on the initial conditions
     start_pts = initial_turtle_state[:, :2]
-    R_WBfinal = rotation_matrix_2d(theta)
+    R_WBfinal = rotation_matrix_2d(desired_box_pose[2])
     R_BfinalW = R_WBfinal.T  # type: ignore
-    end_pts_Bfinal = jnp.array(
+    p_BfinalEndpts = jnp.array(
         [
             [-(box_size / 2 + chassis_radius), 0.0],
             [0.0, -(box_size / 2 + chassis_radius)],
         ]
     )
-    end_pts = desired_box_pose[:2] + R_BfinalW @ end_pts_Bfinal
+    # The spatial algebra feels screwy here but it works??
+    end_pts = desired_box_pose[:2] + R_BfinalW @ p_BfinalEndpts
 
     # Now get the spline control points from the network (we treat these as additions
     # to the midpoint of the start and end points).
