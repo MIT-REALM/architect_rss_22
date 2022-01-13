@@ -14,6 +14,7 @@ import pandas as pd
 
 class SingleTurtleROSController(object):
     """ROS Controller for a single turtlebot"""
+
     def __init__(self, name: str):
         super(SingleTurtleROSController, self).__init__()
         self.name = name
@@ -23,7 +24,9 @@ class SingleTurtleROSController(object):
         self.odom_frame = f"/{name}/odom"
 
         # create a publisher node to send velocity commands to turtlebot
-        self.command_publisher = rospy.Publisher(f"/{name}/cmd_vel", Twist, queue_size=10)
+        self.command_publisher = rospy.Publisher(
+            f"/{name}/cmd_vel", Twist, queue_size=10
+        )
 
         # Make sure to stop the turtlebot using a callback when this node gets shut down
         rospy.on_shutdown(self.on_shutdown)
@@ -47,7 +50,7 @@ class SingleTurtleROSController(object):
                 "No transform found between odom and either base_link or base_footprint"
             )
             rospy.signal_shutdown(f"tf Exception:\n{e}")
-        
+
 
 class MAMROSController(object):
     """Multi-agent Manipulation ROS Controller"""

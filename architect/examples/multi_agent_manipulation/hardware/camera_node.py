@@ -3,8 +3,11 @@
 import apriltag
 import cv2
 import rospy
-
+from geometry_msgs.msg import PoseStamped
 import numpy as np
+from tf.transformations import quaternion_from_euler
+
+from architect.components.geometry.transforms_2d import rotation_matrix_2d
 
 
 class CameraNode(object):
@@ -24,6 +27,24 @@ class CameraNode(object):
         # Create a ROS node
         rospy.init_node("CameraNode", anonymous=True)
 
+        # Create topics for turtlebot and box poses
+        self.box_pose_publisher = rospy.Publisher(
+            "box_pose", PoseStamped, queue_size=10
+        )
+        self.turtle1_pose_publisher = rospy.Publisher(
+            "turtle1_pose", PoseStamped, queue_size=10
+        )
+        self.turtle2_pose_publisher = rospy.Publisher(
+            "turtle2_pose", PoseStamped, queue_size=10
+        )
+        self.pose_publishers = [
+            self.box_pose_publisher,
+            self.turtle1_pose_publisher,
+            self.turtle2_pose_publisher,
+        ]
+        # Track message IDs
+        self.message_id = 0
+
         # Initialize the camera
         self.camera = cv2.VideoCapture(0)
 
@@ -33,6 +54,56 @@ class CameraNode(object):
     def on_shutdown(self) -> None:
         """Release the camera on shutdown"""
         self.camera.release()
+
+    def step(self) -> None:
+        """Run the detector once and publish the detected poses"""
+        # Capture the image
+        ret, img = self.camera.read()
+
+        # Pass if no image captured
+        if not ret:
+            return
+
+        # Resize the image and convert to grayscale
+        scale_factor = 1000.0 / img.shape[1]  # new image should have width 1000 pixels
+        new_dimensions = (1000, int(img.shape[0] * scale_factor))
+        img = cv2.resize(img, new_dimensions, interpolation=cv2.INTER_AREA)
+        grayscale_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Get poses from image
+        poses = self.turtlebot_box_poses_from_image(grayscale_img)
+
+        # If there was an error, log and skip
+        if poses is None:
+            rospy.logwarn("Error detecting poses!")
+            self.rate.sleep()
+            return
+
+        # Format poses into messages to publish
+        for pose, pose_publisher in zip(poses, self.pose_publishers):
+            pose_msg = PoseStamped()
+
+            # Fill in the header
+            pose_msg.header.seq = self.message_id
+            pose_msg.header.stamp = rospy.Time.now()
+            pose_msg.header.frame_id = "origin_tag"
+
+            # Fill in the pose
+            pose_msg.pose.position.x = pose[0]
+            pose_msg.pose.position.y = pose[1]
+            pose_msg.pose.position.z = 0.0
+
+            quaternion_pose = quaternion_from_euler(0.0, 0.0, pose[2])
+            pose_msg.pose.orientation.x = quaternion_pose[0]
+            pose_msg.pose.orientation.y = quaternion_pose[1]
+            pose_msg.pose.orientation.z = quaternion_pose[2]
+            pose_msg.pose.orientation.w = quaternion_pose[3]
+
+            # publish
+            pose_publisher.publish(pose_msg)
+
+        # Sleep
+        self.rate.sleep()
 
     def detect_apriltags(self, img: np.ndarray):
         """Detect all apriltags in the given grayscale image.
@@ -49,6 +120,8 @@ class CameraNode(object):
 
         # Detect APRIL tags in the image
         results = detector.detect(img)
+
+        return results
 
     def turtlebot_box_poses_from_image(self, img: np.ndarray):
         """Get the turtlebot and box poses from an image
@@ -97,25 +170,73 @@ class CameraNode(object):
             return None
 
         # Use the size of the origin tag to set the scale for the image
-        (c0, c1, _, _) = origin_tag.corners
-        origin_tag_side_length_px = np.sqrt((c0[0] - c1[0]) ** 2 + (c0[1] - c1[1]) ** 2)
+        (co0, co1, _, _) = origin_tag.corners
+        origin_tag_side_length_px = np.sqrt(
+            (co0[0] - co1[0]) ** 2 + (co0[1] - co1[1]) ** 2
+        )
         scale_m_per_px = origin_tag_side_length_m / origin_tag_side_length_px
 
         # Get the center of the origin in px
         origin_px = np.array(origin_tag.center)
 
-        # Get the box and turtle positions relative to the origin (in camera frame)
-        p_OBox_Camera = np.array(box_tag.center) - origin_px
-        p_OTurtle1_Camera = np.array(turtle1_tag.center) - origin_px
-        p_OTurtle2_Camera = np.array(turtle2_tag.center) - origin_px
-
-        # Convert to meters
-        p_OBox_Camera *= scale_m_per_px
-        p_OTurtle1_Camera *= scale_m_per_px
-        p_OTurtle2_Camera *= scale_m_per_px
-
         # Get orientation of the origin
+        # co0 is the upper left corner, co1 is the upper right, so co0 -> co1 points
+        # along the x axis of the origin
+        p_Co0Co1_Camera_px = np.array(co1) - np.array(co0)
+        ydiff = p_Co0Co1_Camera_px[1]
+        xdiff = p_Co0Co1_Camera_px[0]
+        theta_CameraO = np.arctan2(ydiff, xdiff)
 
-        # Convert from camera frame to origin frame through a 2D rotation
+        # Make a 2D rotation to convert from camera to origin frames
+        R_CameraO = rotation_matrix_2d(theta_CameraO)
+        R_OCamera = R_CameraO.T
 
-        # Assemble results list and return
+        # Process the rest of the points
+        tags = [box_tag, turtle1_tag, turtle2_tag]
+        poses = np.zeros((3, 3))
+        for idx, tag in enumerate(tags):
+            # Get tag position in pixels relative to origin in camera frame
+            p_OTag_Camera_px = np.array(tag.center) - origin_px
+
+            # Convert to meters
+            p_OTag_Camera_m = p_OTag_Camera_px * scale_m_per_px
+
+            # Convert to origin frame
+            p_OTag_m = R_OCamera @ p_OTag_Camera_m
+
+            # Store position
+            poses[idx, :2] = p_OTag_m
+
+            # Get tag orientation in camera frame
+            (ctag0, ctag1, _, _) = tag.corners
+            p_Ctag0Ctag1_Camera_px = np.array(ctag1) - np.array(ctag0)
+            ydiff = p_Ctag0Ctag1_Camera_px[1]
+            xdiff = p_Ctag0Ctag1_Camera_px[0]
+            theta_CameraTag = np.arctan2(ydiff, xdiff)
+
+            # Convert to origin frame
+            theta_OTag = theta_CameraTag - theta_CameraO
+
+            # Save orientation
+            poses[idx, 2] = theta_OTag
+
+        # Flip y axis and orientation to account for image axes
+        poses[:, 1:] *= -1.0
+
+        return poses
+
+
+def main():
+    # Initialize a camera node and run it
+    camera_node = CameraNode()
+
+    while not rospy.is_shutdown():
+        camera_node.step()
+
+
+# main function; executes the run_turtlebot function until we hit control + C
+if __name__ == "__main__":
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
