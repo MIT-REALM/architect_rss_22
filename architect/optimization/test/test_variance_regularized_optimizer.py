@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 
 from architect.design import DesignProblem, DesignParameters, ExogenousParameters
-from architect.optimization import VarianceRegularizedOptimizer
+from architect.optimization import VarianceRegularizedOptimizerAD
 
 
 def create_test_design_problem(simple=True):
@@ -40,27 +40,27 @@ def create_test_design_problem(simple=True):
     return problem
 
 
-def test_VarianceRegularizedOptimizer_init():
-    """Test initialization of VarianceRegularizedOptimizer"""
+def test_VarianceRegularizedOptimizerAD_init():
+    """Test initialization of VarianceRegularizedOptimizerAD"""
     # Get test problem
     problem = create_test_design_problem()
 
     # Initialize optimizer
     variance_weight = 0.1
     sample_size = 10
-    vropt = VarianceRegularizedOptimizer(problem, variance_weight, sample_size)
+    vropt = VarianceRegularizedOptimizerAD(problem, variance_weight, sample_size)
     assert vropt is not None
 
 
-def test_VarianceRegularizedOptimizer_compile():
-    """Test compiling cost function of VarianceRegularizedOptimizer"""
+def test_VarianceRegularizedOptimizerAD_compile():
+    """Test compiling cost function of VarianceRegularizedOptimizerAD"""
     # Get test problem
     problem = create_test_design_problem()
 
     # Initialize optimizer
     variance_weight = 0.1
     sample_size = 10
-    vropt = VarianceRegularizedOptimizer(problem, variance_weight, sample_size)
+    vropt = VarianceRegularizedOptimizerAD(problem, variance_weight, sample_size)
 
     # Set a PRNG key to use
     key = jax.random.PRNGKey(0)
@@ -88,7 +88,7 @@ def test_VarianceRegularizedOptimizer_compile():
     # Initialize optimizer
     variance_weight = 0.1
     sample_size = 500
-    vropt = VarianceRegularizedOptimizer(problem, variance_weight, sample_size)
+    vropt = VarianceRegularizedOptimizerAD(problem, variance_weight, sample_size)
 
     # Compile the cost function
     vr_cost_and_grad, cost_mean_and_variance = vropt.compile_cost_fn(key)
@@ -108,15 +108,15 @@ def test_VarianceRegularizedOptimizer_compile():
         assert jnp.allclose(grad, 2 * dp_val)
 
 
-def test_VarianceRegularizedOptimizer_optimize():
-    """Test whether VarianceRegularizedOptimizer can optimize a design problem"""
+def test_VarianceRegularizedOptimizerAD_optimize():
+    """Test whether VarianceRegularizedOptimizerAD can optimize a design problem"""
     # Get test problem. Start simple
     problem = create_test_design_problem()
 
     # Initialize optimizer
     variance_weight = 0.1
     sample_size = 10
-    vropt = VarianceRegularizedOptimizer(problem, variance_weight, sample_size)
+    vropt = VarianceRegularizedOptimizerAD(problem, variance_weight, sample_size)
 
     # Set a PRNG key to use
     key = jax.random.PRNGKey(0)
@@ -134,7 +134,7 @@ def test_VarianceRegularizedOptimizer_optimize():
     # Initialize optimizer
     variance_weight = 0.1
     sample_size = 500
-    vropt = VarianceRegularizedOptimizer(problem, variance_weight, sample_size)
+    vropt = VarianceRegularizedOptimizerAD(problem, variance_weight, sample_size)
 
     # Optimize!
     success, msg, dp_opt, cost_mean, cost_var = vropt.optimize(key)

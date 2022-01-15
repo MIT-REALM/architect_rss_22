@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-from architect.optimization import VarianceRegularizedOptimizer
+from architect.optimization import VarianceRegularizedOptimizerAD
 from architect.examples.agv_localization.agv_design_problem import (
     make_agv_localization_design_problem,
 )
@@ -19,7 +19,7 @@ def run_optimizer():
     # Create the optimizer
     variance_weight = 0.1
     sample_size = 512
-    vr_opt = VarianceRegularizedOptimizer(
+    vr_opt = VarianceRegularizedOptimizerAD(
         agv_design_problem, variance_weight, sample_size
     )
 

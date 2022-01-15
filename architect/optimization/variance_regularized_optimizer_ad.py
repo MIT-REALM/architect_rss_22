@@ -12,11 +12,13 @@ import scipy.optimize as sciopt
 from architect.design import DesignProblem
 
 
-class VarianceRegularizedOptimizer(object):
+class VarianceRegularizedOptimizerAD(object):
     """
-    VarianceRegularizedOptimizer implements (as the name implies) variance-
+    VarianceRegularizedOptimizerAD implements (as the name implies) variance-
     regularized design optimization, where we seek to minimize the cost metric plus an
     added regularization term proportional to the variance in the cost metric.
+
+    The AD suffix indicates that this optimizer relies on automatic differentiation.
 
     Formally: given a cost function J(theta, phi) (a function of design and exogenous
     parameters), solve
@@ -39,7 +41,7 @@ class VarianceRegularizedOptimizer(object):
                              objective function
             sample_size: the number of points used to estimate the mean and variance
         """
-        super(VarianceRegularizedOptimizer, self).__init__()
+        super(VarianceRegularizedOptimizerAD, self).__init__()
         self.design_problem = design_problem
         self.variance_weight = variance_weight
         self.sample_size = sample_size

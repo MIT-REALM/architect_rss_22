@@ -1,5 +1,5 @@
-from .variance_regularized_optimizer import VarianceRegularizedOptimizer
+from .variance_regularized_optimizer_ad import VarianceRegularizedOptimizerAD
 
 __all__ = [
-    "VarianceRegularizedOptimizer",
+    "VarianceRegularizedOptimizerAD",
 ]

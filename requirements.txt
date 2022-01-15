@@ -18,6 +18,7 @@ scipy
 pymc3
 arviz
 aesara
+nevergrad
 
 # Learning packages
 torch >= 1.9.0

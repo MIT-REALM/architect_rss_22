@@ -352,8 +352,8 @@ def agv_simulate(
 
 if __name__ == "__main__":
     # Plot the navigation function
-    x = jnp.linspace(-3, 0, 100)
-    y = jnp.linspace(-1, 1, 100)
+    x = jnp.linspace(-3, 0.1, 100)
+    y = jnp.linspace(-1.1, 1.1, 100)
 
     X, Y = jnp.meshgrid(x, y)
     XY = jnp.stack((X, Y)).reshape(2, 10000).T
@@ -379,13 +379,20 @@ if __name__ == "__main__":
     )
 
     # Define the design parameters
-    beacon_locations = jnp.array([[-2.0, 0.75], [-0.1, -0.75]])
+
+    # Initial
+    beacon_locations = jnp.array([[-2.0, 0.0], [-0.1, 0.0]])
     control_gains = jnp.array([0.5, 0.1])
+
+    # # Optimized
+    # beacon_locations = jnp.array([-1.6945883, -1., 0., -0.8280163]).reshape(2, 2)
+    # control_gains = jnp.array([2.535058, 0.09306894])
+
     dp = DesignParameters(control_gains.size + beacon_locations.size)
     dp.set_values(jnp.concatenate((control_gains, beacon_locations.reshape(-1))))
 
     # Sample some exogenous parameters
-    prng_key = jax.random.PRNGKey(101)
+    prng_key = jax.random.PRNGKey(0)
     prng_key, subkey = jax.random.split(prng_key)
     exogenous_sample = ep.sample(subkey)
 
@@ -402,18 +409,28 @@ if __name__ == "__main__":
 
     # Plot overlaid on the navigation function, with beacon locations shown as
     # red triangles
-    fig, axs = plt.subplots(1, 3, figsize=(18, 5))
-    ax = axs[0]
+    # fig, axs = plt.subplots(1, 3, figsize=(18, 5))
+    # ax = axs[0]
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     contours = ax.contourf(X, Y, V, levels=10)
+    cbar = plt.colorbar(contours)
+    cbar.set_label("V", rotation="horizontal", fontsize=15)
     ax.set_xlabel(r"$x$")
     ax.set_ylabel(r"$y$")
-    ax.plot(beacon_locations[:, 0], beacon_locations[:, 1], "r^", label="Beacons")
+    ax.plot(
+        beacon_locations[:, 0],
+        beacon_locations[:, 1],
+        "r^",
+        label="Beacons",
+        markersize=20,
+    )
     ax.plot(
         true_states[:, 0],
         true_states[:, 1],
         "silver",
         marker="x",
         label="True trajectory",
+        markersize=10,
     )
     ax.plot(
         state_estimates[:, 0],
@@ -421,20 +438,30 @@ if __name__ == "__main__":
         "cyan",
         marker="x",
         label="Estimated trajectory",
+        markersize=10,
     )
-    _ = ax.legend()
+    ax.legend(prop={"size": 24})
 
-    # Plot the true navigation function value over time
-    ax = axs[1]
-    ax.plot(jnp.arange(0, T, dt), V_trace)
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Navigation function value")
+    for item in (
+        [ax.title, ax.xaxis.label, ax.yaxis.label]
+        + ax.get_xticklabels()
+        + ax.get_yticklabels()
+    ):
+        item.set_fontsize(15)
 
-    # Plot the estimation error over time
-    ax = axs[2]
-    ax.plot(
-        jnp.arange(0, T, dt), jnp.linalg.norm(true_states - state_estimates, axis=-1)
-    )
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel(r"$||x - \hat{x}||$")
+    ax.set_aspect("equal")
+
+    # # Plot the true navigation function value over time
+    # ax = axs[1]
+    # ax.plot(jnp.arange(0, T, dt), V_trace)
+    # ax.set_xlabel("Time (s)")
+    # ax.set_ylabel("Navigation function value")
+
+    # # Plot the estimation error over time
+    # ax = axs[2]
+    # ax.plot(
+    #     jnp.arange(0, T, dt), jnp.linalg.norm(true_states - state_estimates, axis=-1)
+    # )
+    # ax.set_xlabel("Time (s)")
+    # ax.set_ylabel(r"$||x - \hat{x}||$")
     plt.show()

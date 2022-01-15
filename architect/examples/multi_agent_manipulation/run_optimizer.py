@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-from architect.optimization import VarianceRegularizedOptimizer
+from architect.optimization import VarianceRegularizedOptimizerAD
 from architect.examples.multi_agent_manipulation.mam_design_problem import (
     make_mam_design_problem,
 )
@@ -28,7 +28,7 @@ def run_optimizer():
     # Create the optimizer
     variance_weight = 0.1
     sample_size = 512
-    vr_opt = VarianceRegularizedOptimizer(
+    vr_opt = VarianceRegularizedOptimizerAD(
         mam_design_problem, variance_weight, sample_size
     )
 
