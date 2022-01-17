@@ -25,10 +25,10 @@ class CameraNode(object):
                 be less than 100 Hz
         """
         super(CameraNode, self).__init__()
-        self.rate = rospy.Rate(rate)
 
         # Create a ROS node
         rospy.init_node("CameraNode", anonymous=True)
+        self.rate = rospy.Rate(rate)
 
         # Create topics for turtlebot and box poses
         self.box_pose_publisher = rospy.Publisher(
@@ -52,8 +52,16 @@ class CameraNode(object):
         # Track message IDs
         self.message_id = 0
 
-        # Initialize the camera
+        # Initialize the camera and set the resolution to 1920x1080
         self.camera = cv2.VideoCapture(0)
+        res = self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        res = res and self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        if not res:
+            w = self.camera.get(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+            h = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+            rospy.logwarn(
+                f"Unable to set camera resolution. Current resolution is {w}x{h}"
+            )
 
         # Make sure to release the camera on shutdown
         rospy.on_shutdown(self.on_shutdown)
@@ -80,20 +88,16 @@ class CameraNode(object):
         # Get poses from image
         poses, annotated_img = self.turtlebot_box_poses_from_image(grayscale_img, img)
 
-        # If there was an error, log and skip
-        if poses is None:
-            rospy.logwarn("Error detecting poses!")
-            self.rate.sleep()
-            return
-
         # Publish the image
-        image_message = self.cv_bridge.cv2_to_imgmsg(
-            annotated_img, encoding="passthrough"
-        )
+        image_message = self.cv_bridge.cv2_to_imgmsg(annotated_img, encoding="bgr8")
         self.image_publisher.publish(image_message)
 
         # Format poses into messages to publish
         for pose, pose_publisher in zip(poses, self.pose_publishers):
+            # Skip if no pose detected
+            if pose is None:
+                continue
+
             pose_msg = PoseStamped()
 
             # Fill in the header
@@ -145,11 +149,11 @@ class CameraNode(object):
             grayscale_img: grayscale image
             color_img: color image (for annotation)
         returns:
-            Three np.arrays of (x, y, theta) for the position and orientation of
-            the box and two turtlebots. (x, y) are in meters relative to an origin
-            tag, while theta is in radians relative to the x-axis of the origin tag.
-
-            Could return None if a failure occurs.
+            - List of np.arrays of (x, y, theta) for the position and orientation of
+                the box and two turtlebots. (x, y) are in meters relative to an origin
+                tag, while theta is in radians relative to the x-axis of the origin tag.
+                Each element could be none if there is a detection issue.
+            - An annotated image of any detections.
         """
         # Create a copy of the color image and annotate it
         annotated_img = color_img.copy()
@@ -179,14 +183,9 @@ class CameraNode(object):
             elif d.tag_id == turtle2_tag_id:
                 turtle2_tag = d
 
-        # Fail if not all tags were detected
-        if (
-            origin_tag is None
-            or box_tag is None
-            or turtle1_tag is None
-            or turtle2_tag is None
-        ):
-            return None, annotated_img
+        # Fail if the origin was not detected
+        if origin_tag is None:
+            return [None, None, None], annotated_img
 
         # Use the size of the origin tag to set the scale for the image
         (co0, co1, _, _) = origin_tag.corners
@@ -211,28 +210,42 @@ class CameraNode(object):
         R_OCamera = R_CameraO.T  # type: ignore
 
         # Annotate the origin
-        cv2.circle(annotated_img, origin_px.astype(int), 20, (0, 0, 255), -1)
+        cv2.circle(annotated_img, origin_px.astype(int), 10, (255, 0, 0), -1)
         x_axis = origin_px + R_CameraO @ np.array([50.0, 0.0])
         y_axis = origin_px + R_CameraO @ np.array([0.0, -50.0])
         cv2.line(
             annotated_img,
             origin_px.astype(int),
             (int(x_axis[0]), int(x_axis[1])),
-            (255, 0, 0),
-            20,
+            (0, 0, 255),
+            10,
         )
         cv2.line(
             annotated_img,
             origin_px.astype(int),
             (int(y_axis[0]), int(y_axis[1])),
             (0, 255, 0),
-            20,
+            10,
+        )
+        cv2.putText(
+            annotated_img,
+            "Origin",
+            origin_px.astype(int),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
         )
 
         # Process the rest of the points
         tags = [box_tag, turtle1_tag, turtle2_tag]
-        poses = np.zeros((3, 3))
-        for idx, tag in enumerate(tags):
+        tag_names = ["Box", "Turtle1", "Turtle2"]
+        poses = [None, None, None]
+        for idx, (tag, tag_name) in enumerate(zip(tags, tag_names)):
+            # Skip if no detection
+            if tag is None:
+                continue
+
             # Get tag position in pixels relative to origin in camera frame
             p_CameraTag_px = np.array(tag.center)
             p_OTag_Camera_px = p_CameraTag_px - origin_px
@@ -244,7 +257,8 @@ class CameraNode(object):
             p_OTag_m = R_OCamera @ p_OTag_Camera_m
 
             # Store position
-            poses[idx, :2] = p_OTag_m
+            pose = np.zeros(3)
+            pose[:2] = p_OTag_m
 
             # Get tag orientation in camera frame
             (ctag0, ctag1, _, _) = tag.corners
@@ -257,30 +271,42 @@ class CameraNode(object):
             theta_OTag = theta_CameraTag - theta_CameraO
 
             # Save orientation
-            poses[idx, 2] = theta_OTag
+            pose[2] = theta_OTag
+            poses[idx] = pose
 
             # Annotate the tag
             R_CameraTag = rotation_matrix_2d(theta_CameraTag)
-            cv2.circle(annotated_img, p_CameraTag_px.astype(int), 20, (0, 0, 255), -1)
+            cv2.circle(annotated_img, p_CameraTag_px.astype(int), 10, (255, 0, 0), -1)
             x_axis = p_CameraTag_px + R_CameraTag @ np.array([50.0, 0.0])
             y_axis = p_CameraTag_px + R_CameraTag @ np.array([0.0, -50.0])
             cv2.line(
                 annotated_img,
                 p_CameraTag_px.astype(int),
                 (int(x_axis[0]), int(x_axis[1])),
-                (255, 0, 0),
-                20,
+                (0, 0, 255),
+                10,
             )
             cv2.line(
                 annotated_img,
                 p_CameraTag_px.astype(int),
                 (int(y_axis[0]), int(y_axis[1])),
                 (0, 255, 0),
-                20,
+                10,
+            )
+            cv2.putText(
+                annotated_img,
+                tag_name,
+                p_CameraTag_px.astype(int),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 255, 255),
+                2,
             )
 
         # Flip y axis and orientation to account for image axes
-        poses[:, 1:] *= -1.0
+        for i in range(len(poses)):
+            if poses[i] is not None:
+                poses[i][1:] *= -1.0
 
         return poses, annotated_img
 

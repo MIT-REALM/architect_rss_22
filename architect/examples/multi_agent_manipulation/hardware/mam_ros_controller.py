@@ -51,10 +51,10 @@ class SingleTurtleROSController(object):
         """Extract the pose from the message"""
         # Convert from quaternion to orientation angle
         quaternion = (
-            pose_msg.orientation.x,
-            pose_msg.orientation.y,
-            pose_msg.orientation.z,
-            pose_msg.orientation.w,
+            pose_msg.pose.orientation.x,
+            pose_msg.pose.orientation.y,
+            pose_msg.pose.orientation.z,
+            pose_msg.pose.orientation.w,
         )
         euler_rotation = euler_from_quaternion(quaternion)
 
@@ -164,10 +164,10 @@ class BoxROSInterface(object):
         """Extract the pose from the message"""
         # Convert from quaternion to orientation angle
         quaternion = (
-            pose_msg.orientation.x,
-            pose_msg.orientation.y,
-            pose_msg.orientation.z,
-            pose_msg.orientation.w,
+            pose_msg.pose.orientation.x,
+            pose_msg.pose.orientation.y,
+            pose_msg.pose.orientation.z,
+            pose_msg.pose.orientation.w,
         )
         euler_rotation = euler_from_quaternion(quaternion)
 
@@ -181,7 +181,7 @@ class MAMROSController(object):
     """Multi-agent Manipulation ROS Controller"""
 
     def __init__(
-        self, design_params: jnp.ndarray, layer_widths: Tuple[int], control_period=0.1
+        self, design_params: jnp.ndarray, layer_widths: Tuple[int], control_period=0.01
     ):
         """Initialize the ROS controller for the multi-agent box pushing system
 
@@ -303,7 +303,7 @@ class MAMROSController(object):
 
         args:
             desired_box_pose: (3,) array of desired x, y, and theta for the box,
-                expressed in the global box frame.
+                expressed in the current box frame.
         returns
             an (n_turtles, 3, 2) array of (x, y) spline points for each turtlebot.
             Structured so that [:, 0, :] are the start points, [:, 1, :] are the control
@@ -349,16 +349,16 @@ class MAMROSController(object):
         # The last layer is just linear
         weight, bias = self.controller_params[-1]
         output = jnp.dot(weight, activations) + bias
-        control_pt_residual = output.reshape(2, 1)
+        control_pt_residual = output.reshape(2, 2)
 
         # Set spline start points as the current positions of the turtlebots
-        spline_pts = jnp.zeros(2, 3, 2)
-        spline_pts = spline_pts.at[0, 0, :] = p_OTurtle1
-        spline_pts = spline_pts.at[1, 0, :] = p_OTurtle2
+        spline_pts = jnp.zeros((2, 3, 2))
+        spline_pts = spline_pts.at[0, 0, :].set(p_OTurtle1)
+        spline_pts = spline_pts.at[1, 0, :].set(p_OTurtle2)
 
         # Set end points as offset from the desired box position
-        R_OBoxfinal = rotation_matrix_2d(desired_box_pose[2])
-        R_BoxfinalO = R_OBoxfinal.T  # type: ignore
+        R_BoxinitialBoxfinal = rotation_matrix_2d(desired_box_pose[2])
+        R_BoxfinalBoxinitial = R_BoxinitialBoxfinal.T  # type: ignore
         box_size = 0.61
         chassis_radius = 0.08
         p_BfinalEndpts = jnp.array(
@@ -367,9 +367,16 @@ class MAMROSController(object):
                 [0.0, -(box_size / 2 + chassis_radius)],
             ]
         ).T
+        p_BoxinitialEndpts = desired_box_pose[:2].reshape(1, 2) + R_BoxfinalBoxinitial @ p_BfinalEndpts
+        # Convert end points to global frame
         spline_pts = spline_pts.at[:, 2, :].set(
-            desired_box_pose[:2] + R_BoxfinalO @ p_BfinalEndpts
+            p_OBox + R_BoxO @ p_BoxinitialEndpts
         )
+
+        print(f"box pose: {self.box.pose}")
+        print(f"desired box pose re box: {desired_box_pose}")
+        print(f"p_BfinalEndpts: {p_BfinalEndpts}")
+        print(f"p_BoxinitialEndpts: {p_BoxinitialEndpts}")
 
         # Control points are set based on a learned difference from the center of the
         # line connecting the start and end points
@@ -381,7 +388,13 @@ class MAMROSController(object):
         self.spline_pts = spline_pts
 
         # Publish the plan image
-        self.publish_plan_image(spline_pts, desired_box_pose)
+        desired_box_pose_global = jnp.zeros(3)
+        desired_box_pose_global = desired_box_pose_global.at[:2].set(
+            p_OBox + R_OBox @ desired_box_pose[:2]
+        )
+        desired_box_pose_global = desired_box_pose_global.at[2].set(desired_box_pose[2] + theta_OBox)
+        
+        self.publish_plan_image(spline_pts, desired_box_pose_global)
 
         return spline_pts
 
@@ -424,8 +437,10 @@ class MAMROSController(object):
         spline1 = jax.vmap(spline1_fn, in_axes=0)(t)
         spline2 = jax.vmap(spline2_fn, in_axes=0)(t)
 
-        ax.plt(spline1[:, 0], spline1[:, 1], "k:")
-        ax.plt(spline2[:, 0], spline2[:, 1], "k:")
+        ax.plot(spline1[:, 0], spline1[:, 1], "k--", linewidth=3)
+        ax.plot(spline2[:, 0], spline2[:, 1], "k--", linewidth=3)
+        ax.plot(spline_pts[0, :, 0], spline_pts[0, :, 1], "ko:", markersize=10)
+        ax.plot(spline_pts[1, :, 0], spline_pts[1, :, 1], "ko:", markersize=10)
 
         # Format the plot
         ax.set_xlabel(r"$x$")
@@ -441,5 +456,44 @@ class MAMROSController(object):
         )
 
         # Publish the image
-        image_message = self.bridge.cv2_to_imgmsg(plan_image, encoding="passthrough")
+        image_message = self.cv_bridge.cv2_to_imgmsg(plan_image, encoding="rgb8")
         self.plan_publisher.publish(image_message)
+
+
+def main():
+    # Initialize a camera node and run it
+    logfile = (
+        "logs/multi_agent_manipulation/real_turtle_dimensions/"
+        "design_optimization_512_samples_0p5x0p5xpi_4_target_"
+        "9x32x4_network_spline_1e-1_variance_weight_solution.csv"
+    )
+    design_param_values = jnp.array(
+        np.loadtxt(
+            logfile,
+            delimiter=",",
+        )
+    )
+    layer_widths = (2 * 3 + 3, 32, 2 * 2)
+    mam_controller_node = MAMROSController(design_param_values, layer_widths)
+
+    sleep_time = 2
+    for t in range(int(sleep_time / mam_controller_node.control_period)):
+        mam_controller_node.rate.sleep()
+
+    print("Planning!")
+    desired_box_pose = jnp.array([0.5, 0.5, 1.0])
+    mam_controller_node.plan(desired_box_pose)
+
+    for t in range(int(sleep_time / mam_controller_node.control_period)):
+        mam_controller_node.rate.sleep()
+
+    # while not rospy.is_shutdown():
+    #     mam_controller_node.step()
+
+
+# main function; executes the run_turtlebot function until we hit control + C
+if __name__ == "__main__":
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
