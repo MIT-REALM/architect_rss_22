@@ -59,7 +59,9 @@ class AGVROSController(object):
         self.odom_frame = "/odom"
 
         # create a publisher node to send velocity commands to turtlebot
-        self.command_publisher = rospy.Publisher("cmd_vel", Twist, queue_size=10)
+        self.command_publisher = rospy.Publisher(
+            "turtle1/cmd_vel", Twist, queue_size=10
+        )
 
         # Make sure to stop the turtlebot using a callback when this node gets shut down
         rospy.on_shutdown(self.on_shutdown)
@@ -301,6 +303,9 @@ class AGVROSController(object):
 
 def main():
     # Initialize a controller and run it
+    # # Initial
+    # design_params = jnp.array([0.5, 0.1, -2.0, 0.0, -0.1, 0.0])
+    # Optimized
     design_params = jnp.array([2.535058, 0.09306894, -1.6945883, -1.0, 0.0, -0.8280163])
     dt = 0.1
     controller = AGVROSController(design_params, dt)
