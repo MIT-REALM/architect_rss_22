@@ -10,6 +10,7 @@ from architect.examples.multi_agent_manipulation.mam_plotting import (
     plot_box_trajectory,
     plot_turtle_trajectory,
     make_box_patches,
+    make_pushing_animation,
 )
 from architect.examples.multi_agent_manipulation.mam_simulator import (
     turtlebot_dynamics_step,
@@ -346,6 +347,7 @@ def test_push():
     exogenous_sample = mam_design_problem.exogenous_params.sample(subkey)
 
     # Simulate
+    desired_box_pose = exogenous_sample[4:7]
     turtle_states, box_states = mam_simulate_single_push_two_turtles(
         design_param_values,
         exogenous_sample,
@@ -353,17 +355,32 @@ def test_push():
         dt,
     )
 
-    plot_box_trajectory(box_states, 0.5, 20, plt.gca())
-    plot_turtle_trajectory(turtle_states[:, 0, :], 0.1, 20, plt.gca())
-    plot_turtle_trajectory(turtle_states[:, 1, :], 0.1, 20, plt.gca())
-    desired_box_pose = exogenous_sample[4:7]
-    make_box_patches(desired_box_pose, 1.0, 0.5, plt.gca(), hatch=True)
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.xlim([-0.75, 1.0])
-    plt.ylim([-0.75, 1.0])
-    plt.gca().set_aspect("equal")
-    plt.show()
+    # plot_box_trajectory(box_states, 0.5, 20, plt.gca())
+    # plot_turtle_trajectory(turtle_states[:, 0, :], 0.1, 20, plt.gca())
+    # plot_turtle_trajectory(turtle_states[:, 1, :], 0.1, 20, plt.gca())
+    # make_box_patches(desired_box_pose, 1.0, 0.5, plt.gca(), hatch=True)
+    # plt.xlabel("x")
+    # plt.ylabel("y")
+    # plt.xlim([-0.75, 1.0])
+    # plt.ylim([-0.75, 1.0])
+    # plt.gca().set_aspect("equal")
+    # plt.show()
+
+    box_size = 0.61
+    chassis_radius = 0.08
+    fps = 20
+    n_steps_to_show = 4 * fps
+    interval = int(1000 / fps)
+    make_pushing_animation(
+        box_states,
+        turtle_states,
+        desired_box_pose,
+        box_size,
+        chassis_radius,
+        n_steps_to_show,
+        interval,
+        "animation.gif",
+    )
 
 
 if __name__ == "__main__":
