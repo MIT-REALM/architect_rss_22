@@ -353,7 +353,8 @@ def agv_simulate(
 if __name__ == "__main__":
     # Plot the navigation function
     x = jnp.linspace(-3, 0.1, 100)
-    y = jnp.linspace(-1.1, 1.1, 100)
+    # y = jnp.linspace(-1.1, 1.1, 100)
+    y = jnp.linspace(-1.1, 0.75, 100)
 
     X, Y = jnp.meshgrid(x, y)
     XY = jnp.stack((X, Y)).reshape(2, 10000).T
@@ -380,13 +381,13 @@ if __name__ == "__main__":
 
     # Define the design parameters
 
-    # Initial
-    beacon_locations = jnp.array([[-2.0, 0.0], [-0.1, 0.0]])
-    control_gains = jnp.array([0.5, 0.1])
+    # # Initial
+    # beacon_locations = jnp.array([[-2.0, 0.0], [-0.1, 0.0]])
+    # control_gains = jnp.array([0.5, 0.1])
 
-    # # Optimized
-    # beacon_locations = jnp.array([-1.6945883, -1., 0., -0.8280163]).reshape(2, 2)
-    # control_gains = jnp.array([2.535058, 0.09306894])
+    # Optimized
+    beacon_locations = jnp.array([-1.6945883, -1.0, 0.0, -0.8280163]).reshape(2, 2)
+    control_gains = jnp.array([2.535058, 0.09306894])
 
     dp = DesignParameters(control_gains.size + beacon_locations.size)
     dp.set_values(jnp.concatenate((control_gains, beacon_locations.reshape(-1))))
@@ -413,7 +414,7 @@ if __name__ == "__main__":
     # ax = axs[0]
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     contours = ax.contourf(X, Y, V, levels=10)
-    cbar = plt.colorbar(contours)
+    cbar = plt.colorbar(contours, location="top")
     cbar.set_label("V", rotation="horizontal", fontsize=15)
     ax.set_xlabel(r"$x$")
     ax.set_ylabel(r"$y$")
@@ -450,6 +451,7 @@ if __name__ == "__main__":
         item.set_fontsize(15)
 
     ax.set_aspect("equal")
+    # fig.tight_layout()
 
     # # Plot the true navigation function value over time
     # ax = axs[1]

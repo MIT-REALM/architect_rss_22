@@ -2,7 +2,8 @@ import sys
 
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
+
+# import matplotlib.pyplot as plt
 
 from architect.optimization import (
     VarianceRegularizedOptimizerAD,
@@ -11,11 +12,12 @@ from architect.optimization import (
 from architect.examples.multi_agent_manipulation.mam_design_problem import (
     make_mam_design_problem,
 )
-from architect.examples.multi_agent_manipulation.mam_plotting import (
-    plot_box_trajectory,
-    plot_turtle_trajectory,
-    make_box_patches,
-)
+
+# from architect.examples.multi_agent_manipulation.mam_plotting import (
+#     plot_box_trajectory,
+#     plot_turtle_trajectory,
+#     make_box_patches,
+# )
 
 
 def run_optimizer():
@@ -48,7 +50,9 @@ def run_optimizer():
 
     # # Run a simulation for plotting the optimal solution
     # exogenous_sample = mam_design_problem.exogenous_params.sample(prng_key)
-    # (turtle_states, box_states) = mam_design_problem.simulator(dp_opt, exogenous_sample)
+    # (turtle_states, box_states) = mam_design_problem.simulator(
+    #     dp_opt, exogenous_sample
+    # )
 
     # # Plot the results
     # plot_box_trajectory(box_states, 0.5, 20, plt.gca())

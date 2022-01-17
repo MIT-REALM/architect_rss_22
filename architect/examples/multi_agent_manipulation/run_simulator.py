@@ -9,7 +9,7 @@ from architect.examples.multi_agent_manipulation.mam_design_problem import (
 from architect.examples.multi_agent_manipulation.mam_plotting import (
     plot_box_trajectory,
     plot_turtle_trajectory,
-    make_box_patches,
+    # make_box_patches,
     make_pushing_animation,
 )
 from architect.examples.multi_agent_manipulation.mam_simulator import (

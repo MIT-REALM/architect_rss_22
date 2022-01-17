@@ -50,7 +50,7 @@ class VarianceRegularizedOptimizerCMA(object):
     def compile_cost_fn(
         self, prng_key: PRNGKeyArray
     ) -> Tuple[
-        Callable[[np.ndarray], Tuple[float, np.ndarray]],
+        Callable[[np.ndarray], float],
         Callable[[jnp.ndarray], Tuple[jnp.ndarray, jnp.ndarray]],
     ]:
         """Compile the variance-regularized cost function. This involves:
@@ -114,8 +114,11 @@ class VarianceRegularizedOptimizerCMA(object):
         return vr_cost_np, cost_mean_and_variance
 
     def optimize(
-        self, prng_key: PRNGKeyArray, budget: int = 100, verbosity: int = 0,
-    ) -> Tuple[bool, str, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        self,
+        prng_key: PRNGKeyArray,
+        budget: int = 100,
+        verbosity: int = 0,
+    ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Optimize the design problem. Does not return status because it is difficult
         to infer convergence from derivative-free methods
 
