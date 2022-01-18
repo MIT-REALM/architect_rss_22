@@ -367,11 +367,11 @@ class MAMROSController(object):
                 [0.0, -(box_size / 2 + chassis_radius)],
             ]
         ).T
-        p_BoxinitialEndpts = desired_box_pose[:2].reshape(1, 2) + R_BoxfinalBoxinitial @ p_BfinalEndpts
-        # Convert end points to global frame
-        spline_pts = spline_pts.at[:, 2, :].set(
-            p_OBox + R_BoxO @ p_BoxinitialEndpts
+        p_BoxinitialEndpts = (
+            desired_box_pose[:2].reshape(1, 2) + R_BoxfinalBoxinitial @ p_BfinalEndpts
         )
+        # Convert end points to global frame
+        spline_pts = spline_pts.at[:, 2, :].set(p_OBox + R_BoxO @ p_BoxinitialEndpts)
 
         print(f"box pose: {self.box.pose}")
         print(f"desired box pose re box: {desired_box_pose}")
@@ -392,8 +392,10 @@ class MAMROSController(object):
         desired_box_pose_global = desired_box_pose_global.at[:2].set(
             p_OBox + R_OBox @ desired_box_pose[:2]
         )
-        desired_box_pose_global = desired_box_pose_global.at[2].set(desired_box_pose[2] + theta_OBox)
-        
+        desired_box_pose_global = desired_box_pose_global.at[2].set(
+            desired_box_pose[2] + theta_OBox
+        )
+
         self.publish_plan_image(spline_pts, desired_box_pose_global)
 
         return spline_pts

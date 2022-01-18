@@ -1,6 +1,6 @@
 """Define a simulator for the multi-agent manipulation (MAM) task"""
 from functools import partial
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import jax
 import jax.numpy as jnp
@@ -439,6 +439,7 @@ def multi_agent_box_dynamics_step(
     t_final: jnp.ndarray,
     dt: float,
     n_turtles: int,
+    desired_box_pose: Optional[jnp.ndarray] = None,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Compute the one-step dynamics update for a box and multiple turtlebots
 
@@ -467,6 +468,7 @@ def multi_agent_box_dynamics_step(
         t_final: 1-element 0-dimensional array of final time for the spline.
         dt: the timestep at which to simulate
         n_turtles: integer number of turtlebots
+        desired_box_pose: if provided, stop turtles if we get this close
 
     returns: the new state of the turtlebots and the new state of the box
     """
@@ -497,6 +499,11 @@ def multi_agent_box_dynamics_step(
             tracking_velocity,
             high_level_control_gains,
         )
+
+        # Zero the control input if we're close enough to the goal
+        if desired_box_pose is not None:
+            not_close_enough = softnorm(desired_box_pose - current_box_state[:3]) > 0.1
+            control_input = not_close_enough * control_input
 
         # Update the state of the turtlebot
         new_turtlebot_states = new_turtlebot_states.at[i].set(
@@ -745,6 +752,7 @@ def mam_simulate_single_push_two_turtles(
             push_time * 0.5,
             dt,
             n_turtles,
+            desired_box_pose=desired_box_pose,
         )
         turtle_states = turtle_states.at[t + 1].set(new_turtle_state)
         box_states = box_states.at[t + 1].set(new_box_state)

@@ -3,7 +3,7 @@ import sys
 import jax
 import jax.numpy as jnp
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 from architect.optimization import (
     VarianceRegularizedOptimizerAD,
@@ -13,11 +13,11 @@ from architect.examples.multi_agent_manipulation.mam_design_problem import (
     make_mam_design_problem,
 )
 
-# from architect.examples.multi_agent_manipulation.mam_plotting import (
-#     plot_box_trajectory,
-#     plot_turtle_trajectory,
-#     make_box_patches,
-# )
+from architect.examples.multi_agent_manipulation.mam_plotting import (
+    plot_box_trajectory,
+    plot_turtle_trajectory,
+    make_box_patches,
+)
 
 
 def run_optimizer():
@@ -48,22 +48,20 @@ def run_optimizer():
     print(f"Optimal mean cost: {cost_mean}")
     print(f"Optimal cost variance: {cost_var}")
 
-    # # Run a simulation for plotting the optimal solution
-    # exogenous_sample = mam_design_problem.exogenous_params.sample(prng_key)
-    # (turtle_states, box_states) = mam_design_problem.simulator(
-    #     dp_opt, exogenous_sample
-    # )
+    # Run a simulation for plotting the optimal solution
+    exogenous_sample = mam_design_problem.exogenous_params.sample(prng_key)
+    (turtle_states, box_states) = mam_design_problem.simulator(dp_opt, exogenous_sample)
 
-    # # Plot the results
-    # plot_box_trajectory(box_states, 0.5, 20, plt.gca())
-    # plot_turtle_trajectory(turtle_states[:, 0, :], 0.1, 20, plt.gca())
-    # plot_turtle_trajectory(turtle_states[:, 1, :], 0.1, 20, plt.gca())
-    # desired_box_pose = exogenous_sample[4:7]
-    # make_box_patches(desired_box_pose, 1.0, 0.5, plt.gca(), hatch=True)
-    # plt.xlabel("x")
-    # plt.ylabel("y")
-    # plt.gca().set_aspect("equal")
-    # plt.show()
+    # Plot the results
+    plot_box_trajectory(box_states, 0.5, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 0, :], 0.1, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 1, :], 0.1, 20, plt.gca())
+    desired_box_pose = exogenous_sample[4:7]
+    make_box_patches(desired_box_pose, 1.0, 0.5, plt.gca(), hatch=True)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.gca().set_aspect("equal")
+    plt.show()
 
 
 def run_optimizer_cma():
@@ -93,6 +91,21 @@ def run_optimizer_cma():
     print(f"Optimal design parameters:\n{dp_opt}")
     print(f"Optimal mean cost: {cost_mean}")
     print(f"Optimal cost variance: {cost_var}")
+
+    # Run a simulation for plotting the optimal solution
+    exogenous_sample = mam_design_problem.exogenous_params.sample(prng_key)
+    (turtle_states, box_states) = mam_design_problem.simulator(dp_opt, exogenous_sample)
+
+    # Plot the results
+    plot_box_trajectory(box_states, 0.5, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 0, :], 0.1, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 1, :], 0.1, 20, plt.gca())
+    desired_box_pose = exogenous_sample[4:7]
+    make_box_patches(desired_box_pose, 1.0, 0.5, plt.gca(), hatch=True)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.gca().set_aspect("equal")
+    plt.show()
 
 
 if __name__ == "__main__":

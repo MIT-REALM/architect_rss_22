@@ -9,7 +9,7 @@ from architect.examples.multi_agent_manipulation.mam_design_problem import (
 from architect.examples.multi_agent_manipulation.mam_plotting import (
     plot_box_trajectory,
     plot_turtle_trajectory,
-    # make_box_patches,
+    make_box_patches,
     make_pushing_animation,
 )
 from architect.examples.multi_agent_manipulation.mam_simulator import (
@@ -128,7 +128,7 @@ def test_turtle_spline_following():
     box_size = jnp.array(0.61)
     chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
-    high_level_control_gains = jnp.array([12.0, 5.0])
+    high_level_control_gains = jnp.array([1.0, 5.0, 2.0])
     initial_turtle_state = jnp.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
     initial_box_state = jnp.array([-2, 0.0, 0.0, 0.0, 0.0, 0.0])
     turtle_states = jnp.zeros((n_steps, 1, 6))
@@ -192,7 +192,7 @@ def test_box_turtle_dynamics():
     box_size = jnp.array(0.61)
     chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
-    high_level_control_gains = jnp.array([2.0, 5.0])
+    high_level_control_gains = jnp.array([1.0, 5.0, 2.0])
     initial_turtle_state = jnp.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
     initial_box_state = jnp.array([0.5, 0.1, 0.0, 0.0, 0.0, 0.0])
     turtle_states = jnp.zeros((n_steps, 1, 6))
@@ -257,7 +257,7 @@ def test_box_two_turtles_dynamics():
     box_size = jnp.array(0.61)
     chassis_radius = jnp.array(0.08)
     low_level_control_gains = jnp.array([5.0, 0.1])
-    high_level_control_gains = jnp.array([2.0, 5.0])
+    high_level_control_gains = jnp.array([1.0, 5.0, 2.0])
     initial_turtle_state = jnp.array(
         [
             [-0.35, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -355,16 +355,17 @@ def test_push():
         dt,
     )
 
-    # plot_box_trajectory(box_states, 0.5, 20, plt.gca())
-    # plot_turtle_trajectory(turtle_states[:, 0, :], 0.1, 20, plt.gca())
-    # plot_turtle_trajectory(turtle_states[:, 1, :], 0.1, 20, plt.gca())
-    # make_box_patches(desired_box_pose, 1.0, 0.5, plt.gca(), hatch=True)
-    # plt.xlabel("x")
-    # plt.ylabel("y")
-    # plt.xlim([-0.75, 1.0])
-    # plt.ylim([-0.75, 1.0])
-    # plt.gca().set_aspect("equal")
-    # plt.show()
+    plot_box_trajectory(box_states, 0.61, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 0, :], 0.08, 20, plt.gca())
+    plot_turtle_trajectory(turtle_states[:, 1, :], 0.08, 20, plt.gca())
+    make_box_patches(desired_box_pose, 1.0, 0.61, plt.gca(), hatch=True)
+
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.xlim([-0.75, 1.0])
+    plt.ylim([-0.75, 1.0])
+    plt.gca().set_aspect("equal")
+    plt.show()
 
     box_size = 0.61
     chassis_radius = 0.08
