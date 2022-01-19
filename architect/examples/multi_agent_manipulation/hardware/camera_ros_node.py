@@ -58,20 +58,21 @@ class CameraNode(object):
         # Track message IDs
         self.message_id = 0
 
-        # Initialize the camera and set the resolution to 1920x1080 and FPS to the set rate
+        # Initialize the camera and set the resolution to 1920x1080
+        # and FPS to the set rate
         self.camera = cv2.VideoCapture(0)
-        res = self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'));
-        res = self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        res = self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-        res = self.camera.set(cv2.CAP_PROP_FPS, 30.0)
-        
+        self.camera.set(
+            cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc("M", "J", "P", "G")
+        )
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.camera.set(cv2.CAP_PROP_FPS, 30.0)
+
         channel = self.camera.get(cv2.CAP_PROP_CHANNEL)
         w = self.camera.get(cv2.CAP_PROP_FRAME_WIDTH)
         h = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
         fps = self.camera.get(cv2.CAP_PROP_FPS)
-        rospy.loginfo(
-            f"Camera channel {channel}, resolution {w}x{h}, fps {fps}."
-        )
+        rospy.loginfo(f"Camera channel {channel}, resolution {w}x{h}, fps {fps}.")
 
         # Make sure to release the camera on shutdown
         rospy.on_shutdown(self.on_shutdown)

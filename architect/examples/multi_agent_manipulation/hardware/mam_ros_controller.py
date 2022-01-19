@@ -445,8 +445,10 @@ class MAMROSController(object):
                 ):
                     rospy.logerror(
                         (
-                            f"Desired box pose {desired_box_pose} is {desired_box_pose_relative}"
-                            " relative to current box pose, which is not allowed (must be first quadrant)."
+                            f"Desired box pose {self.desired_box_pose} is"
+                            f" {desired_box_pose_relative}"
+                            " relative to current box pose, which is not allowed "
+                            "(must be first quadrant)."
                         )
                     )
 
@@ -459,11 +461,15 @@ class MAMROSController(object):
                 self.push_start_time = rospy.get_time()
 
         elif self.state == MAMROSController.PUSHING:
-            # Push until the box is close to the goal position, or until some maximum time has elapsed
+            # Push until the box is close to the goal position,
+            # or until some maximum time has elapsed
             distance_to_desired = jnp.linalg.norm(self.box.pose - self.desired_box_pose)
             pushing_time_elapsed = rospy.get_time() - self.push_start_time
 
-            if distance_to_desired > 0.05 and pushing_time_elapsed <= self.push_duration:
+            if (
+                distance_to_desired > 0.05
+                and pushing_time_elapsed <= self.push_duration
+            ):
                 # Normalize time
                 t = pushing_time_elapsed / self.push_duration
 
@@ -483,13 +489,16 @@ class MAMROSController(object):
             else:
                 # If either of those conditions are met, then move to the next mode
                 rospy.loginfo(
-                    f"Pushing done! Desired box pose: {self.desired_box_pose}, box pose: {self.box.pose}"
+                    (
+                        f"Pushing done! Desired box pose: {self.desired_box_pose}, "
+                        f"box pose: {self.box.pose}"
+                    )
                 )
                 self.state = MAMROSController.IDLE
 
         elif self.state == MAMROSController.BACKING_OFF:
             # CURRENTLY NOT USED. May be needed when we try to chain multiple pushes
-            # In this state, just tell both robots to seek to a point some distance from the box
+            # In this state, just tell both robots to seek to a point some distance away
             # Get box pose and compute turtle positions relative to origin
             R_OBox = rotation_matrix_2d(self.box.pose[2])
             p_BoxClearancepts = jnp.array(
@@ -508,7 +517,7 @@ class MAMROSController(object):
                 (p_OClearancepts[:, 1], jnp.array([jnp.pi / 2.0]))
             )
             turtle1_done = self.turtle1.seek_pose(turtle1_goal)
-            # turtle2_done = self.turtle2.seek_pose(turtle2_goal)
+            turtle2_done = self.turtle2.seek_pose(turtle2_goal)
 
             # Transition to the next state when both turtles are there
             if turtle1_done and turtle2_done:
@@ -583,7 +592,6 @@ class MAMROSController(object):
 
         # Set end points as offset from the desired box position
         R_BoxinitialBoxfinal = rotation_matrix_2d(desired_box_pose[2])
-        R_BoxfinalBoxinitial = R_BoxinitialBoxfinal.T  # type: ignore
         p_BfinalEndpts = jnp.array(
             [
                 [-(self.box_size / 2 + self.chassis_radius), 0.0],
