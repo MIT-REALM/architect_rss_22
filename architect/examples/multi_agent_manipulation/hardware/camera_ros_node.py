@@ -8,7 +8,7 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import Image
 import numpy as np
-from tf.transformations import quaternion_from_euler
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from architect.components.geometry.transforms_2d import rotation_matrix_2d
 
@@ -49,19 +49,29 @@ class CameraNode(object):
         self.image_publisher = rospy.Publisher("overhead_image", Image, queue_size=10)
         self.cv_bridge = CvBridge()
 
+        # Subscribe to the desired box pose so we can draw it
+        self.desired_box_pose = None
+        rospy.Subscriber(
+            "desired_box_pose", PoseStamped, self.desired_box_pose_callback
+        )
+
         # Track message IDs
         self.message_id = 0
 
-        # Initialize the camera and set the resolution to 1920x1080
+        # Initialize the camera and set the resolution to 1920x1080 and FPS to the set rate
         self.camera = cv2.VideoCapture(0)
+        res = self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'));
         res = self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        res = res and self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-        if not res:
-            w = self.camera.get(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-            h = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-            rospy.logwarn(
-                f"Unable to set camera resolution. Current resolution is {w}x{h}"
-            )
+        res = self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        res = self.camera.set(cv2.CAP_PROP_FPS, 30.0)
+        
+        channel = self.camera.get(cv2.CAP_PROP_CHANNEL)
+        w = self.camera.get(cv2.CAP_PROP_FRAME_WIDTH)
+        h = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        fps = self.camera.get(cv2.CAP_PROP_FPS)
+        rospy.loginfo(
+            f"Camera channel {channel}, resolution {w}x{h}, fps {fps}."
+        )
 
         # Make sure to release the camera on shutdown
         rospy.on_shutdown(self.on_shutdown)
@@ -69,6 +79,22 @@ class CameraNode(object):
     def on_shutdown(self) -> None:
         """Release the camera on shutdown"""
         self.camera.release()
+
+    def desired_box_pose_callback(self, msg):
+        """Process desired box pose messages"""
+        # Convert from quaternion to orientation angle
+        quaternion = (
+            msg.pose.orientation.x,
+            msg.pose.orientation.y,
+            msg.pose.orientation.z,
+            msg.pose.orientation.w,
+        )
+        euler_rotation = euler_from_quaternion(quaternion)
+
+        # Store the xy position and orientation in the pose vector
+        self.desired_box_pose = np.array(
+            [msg.pose.position.x, msg.pose.position.y, euler_rotation[2]]
+        )
 
     def step(self) -> None:
         """Run the detector once and publish the detected poses"""
@@ -118,6 +144,8 @@ class CameraNode(object):
 
             # publish
             pose_publisher.publish(pose_msg)
+
+            self.message_id += 1
 
         # Sleep
         self.rate.sleep()
@@ -297,6 +325,50 @@ class CameraNode(object):
                 annotated_img,
                 tag_name,
                 p_CameraTag_px.astype(int),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 255, 255),
+                2,
+            )
+
+        # Draw the desired box pose
+        if self.desired_box_pose is not None:
+            p_OBox = self.desired_box_pose[:2]
+            p_OBox_Camera = R_CameraO @ p_OBox
+            p_OBox_Camera_px = p_OBox_Camera / scale_m_per_px
+            box_center_px = origin_px
+            box_center_px[0] += p_OBox_Camera_px[0]
+            box_center_px[1] -= p_OBox_Camera_px[1]
+            box_center_px = np.round(box_center_px).astype(np.int32)
+
+            cv2.circle(
+                annotated_img,
+                (int(box_center_px[0]), int(box_center_px[1])),
+                10,
+                (255, 0, 0),
+                -1,
+            )
+            R_CameraBox = rotation_matrix_2d(self.desired_box_pose[2] + theta_CameraO)
+            x_axis = box_center_px + R_CameraBox @ np.array([50.0, 0.0])
+            y_axis = box_center_px + R_CameraBox @ np.array([0.0, -50.0])
+            cv2.line(
+                annotated_img,
+                box_center_px.astype(int),
+                (int(x_axis[0]), int(x_axis[1])),
+                (0, 0, 255),
+                10,
+            )
+            cv2.line(
+                annotated_img,
+                box_center_px.astype(int),
+                (int(y_axis[0]), int(y_axis[1])),
+                (0, 255, 0),
+                10,
+            )
+            cv2.putText(
+                annotated_img,
+                "Desired Box Pose",
+                box_center_px.astype(int),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (255, 255, 255),

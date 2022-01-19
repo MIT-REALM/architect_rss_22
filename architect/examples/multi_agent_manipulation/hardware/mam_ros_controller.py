@@ -5,7 +5,7 @@ import rospy
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist, PoseStamped
 from sensor_msgs.msg import Image
-from tf.transformations import euler_from_quaternion
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 import jax
 import jax.numpy as jnp
@@ -73,7 +73,9 @@ class SingleTurtleROSController(object):
         command = Twist()
 
         # Load the linear and angular velocities into the command
-        command.linear.x = control_command[0]
+        # NOTE: flip the sign of the linear command so we drive backwards, which
+        # is needed to push the box
+        command.linear.x = -control_command[0]
         command.angular.z = control_command[1]
 
         self.command_publisher.publish(command)
@@ -149,6 +151,87 @@ class SingleTurtleROSController(object):
         command = jnp.stack((v, w))
         self.execute_command(command)
 
+    def seek_pose(
+        self,
+        goal_pose: jnp.ndarray,
+    ) -> bool:
+        """
+        Move the turtlebot in a straight line to the goal pose (for one control step)
+
+        args:
+            goal_pose: goal (x, y, theta)
+
+        returns: true if the turtlebot is near the goal
+        """
+        # If we're not pointing towards the goal pose, turn to point towards it
+        theta_OTurtle = self.pose[2]
+        p_OTurtle = self.pose[:2]
+        p_OG = goal_pose[:2]
+        p_TurtleG_O = p_OG - p_OTurtle
+        theta_GTurtle_O = jax.lax.atan2(p_TurtleG_O[1], p_TurtleG_O[0])
+        error_pointing_towards_goal = theta_OTurtle - theta_GTurtle_O
+        # wrap the angle error into [-pi, pi]
+        error_pointing_towards_goal = jax.lax.atan2(
+            jnp.sin(error_pointing_towards_goal), jnp.cos(error_pointing_towards_goal)
+        )
+        distance_from_goal = jnp.linalg.norm(p_TurtleG_O)
+
+        # print("----------------------------------")
+        # print(f"theta_OTurtle: {theta_OTurtle}")
+        # print(f"p_OTurtle: {p_OTurtle}")
+        # print(f"p_OG: {p_OG}")
+        # print(f"p_TurtleG_O: {p_TurtleG_O}")
+        # print(f"theta_GTurtle_O: {theta_GTurtle_O}")
+        # print(f"error_pointing_towards_goal: {error_pointing_towards_goal}")
+        # print(f"distance_from_goal: {distance_from_goal}")
+
+        if jnp.abs(error_pointing_towards_goal) > 0.1 and distance_from_goal > 0.1:
+            v = 0.0
+            w = -1.0 * (theta_OTurtle - theta_GTurtle_O)
+
+            command = jnp.stack((v, w))
+            self.execute_command(command)
+            return False
+
+        # If we are pointing towards the goal but are too far away, then move towards
+        # the goal
+        if distance_from_goal > 0.05:
+            v = 1.0 * distance_from_goal
+            w = -1.0 * (theta_OTurtle - theta_GTurtle_O)
+
+            command = jnp.stack((v, w))
+            self.execute_command(command)
+            return False
+
+        # If we are close to the goal, turn until we meet the goal pose
+        theta_GTurtle = theta_OTurtle - goal_pose[2]
+        if jnp.abs(theta_GTurtle) > 0.05:
+            v = 0.0
+            w = -1.0 * theta_GTurtle
+
+            command = jnp.stack((v, w))
+            self.execute_command(command)
+            return False
+
+        # Otherwise, do nothing (we're at the goal!)
+        v = 0.0
+        w = 0.0
+        command = jnp.stack((v, w))
+        self.execute_command(command)
+        return True
+
+    def reverse(
+        self,
+    ):
+        """
+        Reverse the turtlebot
+        """
+        v = -1.0
+        w = 0.0
+        command = jnp.stack((v, w))
+        self.execute_command(command)
+        return True
+
 
 class BoxROSInterface(object):
     """ROS interface for getting the pose of the box"""
@@ -179,6 +262,14 @@ class BoxROSInterface(object):
 
 class MAMROSController(object):
     """Multi-agent Manipulation ROS Controller"""
+
+    # State machine constants
+    IDLE = 0
+    SEEKING_START = 1
+    AT_START = 2
+    PUSHING = 3
+    AT_END = 4
+    BACKING_OFF = 5
 
     def __init__(
         self, design_params: jnp.ndarray, layer_widths: Tuple[int], control_period=0.01
@@ -218,6 +309,9 @@ class MAMROSController(object):
 
             self.controller_params.append((weight, bias))
 
+        self.box_size = 0.61
+        self.chassis_radius = 0.08
+
         # ------------------------------
         # ROS Initialization
         # ------------------------------
@@ -242,9 +336,17 @@ class MAMROSController(object):
         self.plan_publisher = rospy.Publisher("plan_image", Image, queue_size=10)
 
         # Set up somewhere to store the plan
+        self.desired_box_pose = None
         self.spline_pts = None
-        self.plan_start_time = float("inf")
-        self.push_time = 4.0
+        self.push_duration = 7.0
+        self.push_start_time = 0.0
+        # Publish the desired box pose
+        self.desired_box_pose_pub = rospy.Publisher(
+            "desired_box_pose", PoseStamped, queue_size=10
+        )
+
+        # Set up state machine
+        self.state = MAMROSController.IDLE
 
     def annotated_image_callback(self, msg):
         """Process image messages"""
@@ -254,45 +356,168 @@ class MAMROSController(object):
 
     def step(self) -> None:
         """Execute the plan"""
-        # If there is no plan, then no need to do anything.
-        if self.spline_pts is None:
-            rospy.loginfo("No plan generated...")
-            self.rate.sleep()
-            return
+        # Behavior depends on current state
+        if self.state == MAMROSController.IDLE:
+            # If we are idle, no need to do anything
+            pass
+        elif self.state == MAMROSController.SEEKING_START:
+            # If we are seeking the start pose, we need to get the current box pose,
+            # compute the desired starting positions in the origin frame, and seek
+            # those positions using the turtlebots
 
-        # If we are not yet at the start time of the plan, then don't do anything
-        if rospy.get_time() < self.plan_start_time:
-            rospy.loginfo("Not yet time to start...")
-            self.rate.sleep()
-            return
+            # Get box pose and compute turtle positions relative to origin
+            R_OBox = rotation_matrix_2d(self.box.pose[2])
+            p_BoxStartpts = jnp.array(
+                [
+                    [-(self.box_size / 2 + self.chassis_radius + 0.1), 0.0],
+                    [0.0, -(self.box_size / 2 + self.chassis_radius + 0.1)],
+                ]
+            ).T
+            p_OStartpts = self.box.pose[:2].reshape(2, 1) + R_OBox @ p_BoxStartpts
 
-        # If the plan is over, then don't do anything
-        if rospy.get_time() > self.plan_start_time + self.push_time:
-            rospy.loginfo("Plan done!")
-            self.rate.sleep()
-            return
+            # Seek those positions (add an angle goal)
+            turtle1_goal = jnp.concatenate(
+                (p_OStartpts[:, 0], jnp.array([self.box.pose[2]]))
+            )
+            turtle2_goal = jnp.concatenate(
+                (p_OStartpts[:, 1], jnp.array([self.box.pose[2] + jnp.pi / 2.0]))
+            )
+            turtle1_at_start = self.turtle1.seek_pose(turtle1_goal)
+            turtle2_at_start = self.turtle2.seek_pose(turtle2_goal)
 
-        # If we get to this point, we can start!
+            # Transition to the next state when both turtles are there
+            if turtle1_at_start and turtle2_at_start:
+                rospy.loginfo("Both turtles at start")
+                self.state = MAMROSController.AT_START
 
-        # Normalize time
-        t = (rospy.get_time() - self.plan_start_time) / self.push_time
+        elif self.state == MAMROSController.AT_START:
+            # If we are at the start, and a desired box pose has been set, and the
+            # box is not yet at that desired pose, then we can plan (don't move)
 
-        # Execute the plan on each turtlebot
-        self.turtle1.track_spline(
-            self.spline_pts[0, 0, :],
-            self.spline_pts[0, 1, :],
-            self.spline_pts[0, 2, :],
-            t,
-        )
-        self.turtle2.track_spline(
-            self.spline_pts[1, 0, :],
-            self.spline_pts[1, 1, :],
-            self.spline_pts[1, 2, :],
-            t,
-        )
+            # Publish desired box pose if available
+            if self.desired_box_pose is not None:
+                pose_msg = PoseStamped()
 
-        # Sleep
+                # Fill in the header
+                pose_msg.header.stamp = rospy.Time.now()
+                pose_msg.header.frame_id = "origin_tag"
+
+                # Fill in the pose
+                pose_msg.pose.position.x = self.desired_box_pose[0]
+                pose_msg.pose.position.y = self.desired_box_pose[1]
+                pose_msg.pose.position.z = 0.0
+
+                quaternion_pose = quaternion_from_euler(
+                    0.0, 0.0, self.desired_box_pose[2]
+                )
+                pose_msg.pose.orientation.x = quaternion_pose[0]
+                pose_msg.pose.orientation.y = quaternion_pose[1]
+                pose_msg.pose.orientation.z = quaternion_pose[2]
+                pose_msg.pose.orientation.w = quaternion_pose[3]
+                self.desired_box_pose_pub.publish(pose_msg)
+
+            distance_to_desired = (
+                0.0
+                if self.desired_box_pose is None
+                else jnp.linalg.norm(self.box.pose - self.desired_box_pose)
+            )
+            if self.desired_box_pose is not None and distance_to_desired > 0.1:
+                # Convert the desired box pose from the origin frame into the current
+                # box frame
+                p_ODesired = self.desired_box_pose[:2]
+                p_OBox = self.box.pose[:2]
+                p_BoxDesired_O = p_ODesired - p_OBox
+                R_OBox = rotation_matrix_2d(self.box.pose[2])
+                R_BoxO = R_OBox.T  # type: ignore
+                p_BoxDesired = R_BoxO @ p_BoxDesired_O.reshape(2, 1)
+
+                desired_box_pose_relative = jnp.concatenate(
+                    (
+                        p_BoxDesired.reshape(2),
+                        jnp.array([self.desired_box_pose[2] - self.box.pose[2]]),
+                    )
+                )
+
+                # If this desired pose is not in the first quadrant, then raise an error
+                if (
+                    desired_box_pose_relative[0] < 0.0
+                    or desired_box_pose_relative[1] < 0.0
+                ):
+                    rospy.logerror(
+                        (
+                            f"Desired box pose {desired_box_pose} is {desired_box_pose_relative}"
+                            " relative to current box pose, which is not allowed (must be first quadrant)."
+                        )
+                    )
+
+                # This will save the plan in self.spline_pts
+                rospy.loginfo("Planning")
+                self.plan(desired_box_pose_relative)
+
+                # Move to the next state
+                self.state = MAMROSController.PUSHING
+                self.push_start_time = rospy.get_time()
+
+        elif self.state == MAMROSController.PUSHING:
+            # Push until the box is close to the goal position, or until some maximum time has elapsed
+            distance_to_desired = jnp.linalg.norm(self.box.pose - self.desired_box_pose)
+            pushing_time_elapsed = rospy.get_time() - self.push_start_time
+
+            if distance_to_desired > 0.05 and pushing_time_elapsed <= self.push_duration:
+                # Normalize time
+                t = pushing_time_elapsed / self.push_duration
+
+                # Execute the plan on each turtlebot
+                self.turtle1.track_spline(
+                    self.spline_pts[0, 0, :],
+                    self.spline_pts[0, 1, :],
+                    self.spline_pts[0, 2, :],
+                    t,
+                )
+                self.turtle2.track_spline(
+                    self.spline_pts[1, 0, :],
+                    self.spline_pts[1, 1, :],
+                    self.spline_pts[1, 2, :],
+                    t,
+                )
+            else:
+                # If either of those conditions are met, then move to the next mode
+                rospy.loginfo(
+                    f"Pushing done! Desired box pose: {self.desired_box_pose}, box pose: {self.box.pose}"
+                )
+                self.state = MAMROSController.IDLE
+
+        elif self.state == MAMROSController.BACKING_OFF:
+            # CURRENTLY NOT USED. May be needed when we try to chain multiple pushes
+            # In this state, just tell both robots to seek to a point some distance from the box
+            # Get box pose and compute turtle positions relative to origin
+            R_OBox = rotation_matrix_2d(self.box.pose[2])
+            p_BoxClearancepts = jnp.array(
+                [
+                    [-(self.box_size / 2 + self.chassis_radius + 0.3), 0.0],
+                    [0.0, -(self.box_size / 2 + self.chassis_radius + 0.3)],
+                ]
+            ).T
+            p_OClearancepts = (
+                self.box.pose[:2].reshape(2, 1) + R_OBox @ p_BoxClearancepts
+            )
+
+            # Seek those positions (add an angle goal)
+            turtle1_goal = jnp.concatenate((p_OClearancepts[:, 0], jnp.array([0.0])))
+            turtle2_goal = jnp.concatenate(
+                (p_OClearancepts[:, 1], jnp.array([jnp.pi / 2.0]))
+            )
+            turtle1_done = self.turtle1.seek_pose(turtle1_goal)
+            # turtle2_done = self.turtle2.seek_pose(turtle2_goal)
+
+            # Transition to the next state when both turtles are there
+            if turtle1_done and turtle2_done:
+                rospy.loginfo("Done!")
+                self.state = MAMROSController.IDLE
+
+        # Sleep and return
         self.rate.sleep()
+        return
 
     def plan(self, desired_box_pose: jnp.ndarray) -> jnp.ndarray:
         """
@@ -359,24 +584,21 @@ class MAMROSController(object):
         # Set end points as offset from the desired box position
         R_BoxinitialBoxfinal = rotation_matrix_2d(desired_box_pose[2])
         R_BoxfinalBoxinitial = R_BoxinitialBoxfinal.T  # type: ignore
-        box_size = 0.61
-        chassis_radius = 0.08
         p_BfinalEndpts = jnp.array(
             [
-                [-(box_size / 2 + chassis_radius), 0.0],
-                [0.0, -(box_size / 2 + chassis_radius)],
+                [-(self.box_size / 2 + self.chassis_radius), 0.0],
+                [0.0, -(self.box_size / 2 + self.chassis_radius)],
             ]
         ).T
         p_BoxinitialEndpts = (
-            desired_box_pose[:2].reshape(1, 2) + R_BoxfinalBoxinitial @ p_BfinalEndpts
+            desired_box_pose[:2].reshape(2, 1) + R_BoxinitialBoxfinal @ p_BfinalEndpts
+        )
+        # Convert end points to global frame
+        spline_pts = spline_pts.at[:, 2, :].set(
+            (p_OBox.reshape(2, 1) + R_OBox @ p_BoxinitialEndpts).T
         )
         # Convert end points to global frame
         spline_pts = spline_pts.at[:, 2, :].set(p_OBox + R_BoxO @ p_BoxinitialEndpts)
-
-        print(f"box pose: {self.box.pose}")
-        print(f"desired box pose re box: {desired_box_pose}")
-        print(f"p_BfinalEndpts: {p_BfinalEndpts}")
-        print(f"p_BoxinitialEndpts: {p_BoxinitialEndpts}")
 
         # Control points are set based on a learned difference from the center of the
         # line connecting the start and end points
@@ -418,14 +640,12 @@ class MAMROSController(object):
         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 
         # Plot the starting and desired poses of the box
-        box_size = 0.61
-        make_box_patches(desired_box_pose, 1.0, box_size, plt.gca(), hatch=True)
-        make_box_patches(self.box.pose, 1.0, box_size, plt.gca(), hatch=False)
+        make_box_patches(desired_box_pose, 1.0, self.box_size, plt.gca(), hatch=True)
+        make_box_patches(self.box.pose, 1.0, self.box_size, plt.gca(), hatch=False)
 
         # Plot the starting pose of the turtlebots
-        chassis_radius = 0.08
-        make_turtle_patches(self.turtle1.pose, 1.0, chassis_radius, ax)
-        make_turtle_patches(self.turtle2.pose, 1.0, chassis_radius, ax)
+        make_turtle_patches(self.turtle1.pose, 1.0, self.chassis_radius, ax)
+        make_turtle_patches(self.turtle2.pose, 1.0, self.chassis_radius, ax)
 
         # Plot the splines
         spline1_fn = lambda t: self.turtle1.spline_position(
@@ -476,21 +696,20 @@ def main():
         )
     )
     layer_widths = (2 * 3 + 3, 32, 2 * 2)
-    mam_controller_node = MAMROSController(design_param_values, layer_widths)
+    mam_controller_node = MAMROSController(
+        design_param_values, layer_widths, control_period=0.01
+    )
 
-    sleep_time = 2
+    sleep_time = 0.5
     for t in range(int(sleep_time / mam_controller_node.control_period)):
-        mam_controller_node.rate.sleep()
+        mam_controller_node.step()
 
-    print("Planning!")
-    desired_box_pose = jnp.array([0.5, 0.5, 1.0])
-    mam_controller_node.plan(desired_box_pose)
+    mam_controller_node.state = MAMROSController.SEEKING_START
+    mam_controller_node.desired_box_pose = jnp.array([1.3, 1.0, 0.0])
 
-    for t in range(int(sleep_time / mam_controller_node.control_period)):
-        mam_controller_node.rate.sleep()
-
-    # while not rospy.is_shutdown():
-    #     mam_controller_node.step()
+    run_time = 25.0
+    for t in range(int(run_time / mam_controller_node.control_period)):
+        mam_controller_node.step()
 
 
 # main function; executes the run_turtlebot function until we hit control + C
