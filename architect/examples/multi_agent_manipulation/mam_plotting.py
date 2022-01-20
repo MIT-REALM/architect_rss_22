@@ -37,7 +37,7 @@ def make_box_patches(
         transform=xform,
         edgecolor=plt.get_cmap("Blues")(0.1 + alpha),
         fill=False,
-        hatch=("xx" if hatch else None),
+        hatch=("/" if hatch else None),
     )
     ax.add_patch(box)
     patches_list.append(box)
@@ -131,7 +131,7 @@ def plot_turtle_trajectory(turtle_states, radius: float, n_steps_to_show: int, a
     # Draw the snapshots
     n_steps = turtle_states.shape[0]
     i_to_show = jnp.linspace(0, n_steps, n_steps_to_show, dtype=int)
-    alphas = jnp.linspace(0.0, 1.0, n_steps)
+    alphas = jnp.linspace(0.3, 1.0, n_steps)
     for i in i_to_show:
         make_turtle_patches(turtle_states[i], alphas[i].item(), radius, ax)
 
@@ -158,7 +158,7 @@ def plot_box_trajectory(box_states, box_size: float, n_steps_to_show: int, ax):
     # Draw the snapshots
     n_steps = box_states.shape[0]
     i_to_show = jnp.linspace(0, n_steps, n_steps_to_show, dtype=int)
-    alphas = jnp.linspace(0.0, 1.0, n_steps)
+    alphas = jnp.linspace(0.3, 1.0, n_steps)
     for i in i_to_show:
         make_box_patches(box_states[i], alphas[i].item(), box_size, ax)
 

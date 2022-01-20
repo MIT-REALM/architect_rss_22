@@ -1,13 +1,12 @@
 import time
 
 import jax
-import jax.numpy as jnp
 import arviz as az
 import matplotlib.pyplot as plt
 
 from architect.analysis import WorstCaseCostAnalyzer
 from architect.examples.agv_localization.agv_design_problem import (
-    make_agv_localization_design_problem,
+    make_agv_localization_design_problem_analysis,
 )
 
 
@@ -16,15 +15,15 @@ def run_analysis():
     # Make the design problem
     T = 30
     dt = 0.5
-    agv_design_problem = make_agv_localization_design_problem(T, dt)
+    agv_design_problem = make_agv_localization_design_problem_analysis(T, dt)
 
-    # Set it with the optimal parameters found using `run_optimizer`
-    agv_design_problem.design_params.set_values(
-        jnp.array([2.535058, 0.09306894, -1.6945883, -1.0, 0.0, -0.8280163])
-    )
+    # # Set it with the optimal parameters found using `run_optimizer`
+    # agv_design_problem.design_params.set_values(
+    #     jnp.array([2.535058, 0.09306894, -1.6945883, -1.0, 0.0, -0.8280163])
+    # )
 
     # Create the analyzer
-    sample_size = 500
+    sample_size = 1000
     block_size = 1000
     worst_case_cost_analyzer = WorstCaseCostAnalyzer(
         agv_design_problem, sample_size, block_size

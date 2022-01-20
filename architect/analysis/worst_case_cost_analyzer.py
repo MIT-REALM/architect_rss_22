@@ -67,6 +67,7 @@ class WorstCaseCostAnalyzer(object):
         )
 
         # Get the costs on each sample
+        print(f"Design params: {self.design_problem.design_params.get_values()}")
         sample_cost = costv(
             self.design_problem.design_params.get_values(), exogenous_sample
         )
@@ -75,6 +76,9 @@ class WorstCaseCostAnalyzer(object):
 
         # Get the maximum in each block
         block_maxes = sample_cost.max(axis=-1)
+
+        total_num_samples = self.sample_size * self.block_size
+        print(f"Max observed cost over {total_num_samples}: {block_maxes.max()}")
 
         # Fit a generalized extreme value distribution to these data using PyMC3
         # (a Bayesian analysis using MCMC for inference).

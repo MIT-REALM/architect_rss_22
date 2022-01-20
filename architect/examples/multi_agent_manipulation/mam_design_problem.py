@@ -72,5 +72,5 @@ def make_mam_design_problem(
         )
 
     # Make a design problem instance
-    agv_design_problem = DesignProblem(dp, ep, cost_fn, simulator)
-    return agv_design_problem
+    mam_design_problem = DesignProblem(dp, ep, cost_fn, simulator)
+    return mam_design_problem

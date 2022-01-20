@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from architect.analysis import SensitivityAnalyzer
 from architect.examples.agv_localization.agv_design_problem import (
-    make_agv_localization_design_problem,
+    make_agv_localization_design_problem_analysis,
 )
 
 
@@ -16,7 +16,7 @@ def run_analysis():
     # Make the design problem
     T = 30
     dt = 0.5
-    agv_design_problem = make_agv_localization_design_problem(T, dt)
+    agv_design_problem = make_agv_localization_design_problem_analysis(T, dt)
 
     # Set it with the optimal parameters found using `run_optimizer`
     agv_design_problem.design_params.set_values(

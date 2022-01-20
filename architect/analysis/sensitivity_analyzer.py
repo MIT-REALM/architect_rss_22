@@ -1,5 +1,6 @@
 from typing import Tuple
 
+from tqdm import tqdm
 import arviz as az
 import jax
 import jax.numpy as jnp
@@ -19,7 +20,11 @@ class SensitivityAnalyzer(object):
     tell us whether it is likely Lipschitz or not)."""
 
     def __init__(
-        self, design_problem: DesignProblem, sample_size: int, block_size: int
+        self,
+        design_problem: DesignProblem,
+        sample_size: int,
+        block_size: int,
+        stride_length: int = 1,
     ):
         """Initialize a SensitivityAnalyzer.
 
@@ -31,11 +36,13 @@ class SensitivityAnalyzer(object):
             block_size: the number of samples used to compute the max in each block.
                         Larger block sizes will decrease the variance of the estimate,
                         but will be more expensive to compute.
+            stride_length: batch this many samples at once
         """
         super(SensitivityAnalyzer, self).__init__()
         self.design_problem = design_problem
         self.sample_size = sample_size
         self.block_size = block_size
+        self.stride_length = stride_length
 
     def analyze(
         self, prng_key: PRNGKeyArray
@@ -59,43 +66,52 @@ class SensitivityAnalyzer(object):
 
         # Construct a dataset of the maximum sensitivities for sample_size blocks,
         # each of size block_size.
+        block_maxes = jnp.zeros(self.sample_size)
+        print("Gathering samples...")
+        progress_bar = tqdm(range(0, self.sample_size, self.stride_length))
+        for i in progress_bar:
+            # This starts by sampling two sets of exogenous parameters
+            prng_key, prng_subkey = jax.random.split(prng_key)
+            exogenous_sample_1 = self.design_problem.exogenous_params.sample(
+                prng_subkey, self.stride_length * self.block_size
+            )
+            prng_key, prng_subkey = jax.random.split(prng_key)
+            exogenous_sample_2 = self.design_problem.exogenous_params.sample(
+                prng_subkey, self.stride_length * self.block_size
+            )
 
-        # This starts by sampling two sets of exogenous parameters
-        prng_key, prng_subkey = jax.random.split(prng_key)
-        exogenous_sample_1 = self.design_problem.exogenous_params.sample(
-            prng_subkey, self.sample_size * self.block_size
-        )
-        prng_key, prng_subkey = jax.random.split(prng_key)
-        exogenous_sample_2 = self.design_problem.exogenous_params.sample(
-            prng_subkey, self.sample_size * self.block_size
-        )
+            # Get the costs on each sample
+            sample_1_cost = costv(
+                self.design_problem.design_params.get_values(), exogenous_sample_1
+            )
+            sample_2_cost = costv(
+                self.design_problem.design_params.get_values(), exogenous_sample_2
+            )
 
-        # Get the costs on each sample
-        sample_1_cost = costv(
-            self.design_problem.design_params.get_values(), exogenous_sample_1
-        )
-        sample_2_cost = costv(
-            self.design_problem.design_params.get_values(), exogenous_sample_2
-        )
+            # Get the change in cost for each pair
+            abs_cost_diff = jnp.abs(sample_1_cost - sample_2_cost)
 
-        # Get the change in cost for each pair
-        abs_cost_diff = jnp.abs(sample_1_cost - sample_2_cost)
+            # And compute the slope
+            abs_param_diff = jnp.linalg.norm(
+                exogenous_sample_1 - exogenous_sample_2, axis=-1
+            )
+            slope = abs_cost_diff / abs_param_diff
 
-        # And compute the slope
-        abs_param_diff = jnp.linalg.norm(
-            exogenous_sample_1 - exogenous_sample_2, axis=-1
-        )
-        slope = abs_cost_diff / abs_param_diff
+            # Slope should now have (self.stride_length * self.block_size) entries,
+            # so reshape and save the maximum for each block
+            assert slope.shape == (self.stride_length * self.block_size,)
+            slope = slope.reshape(self.stride_length, self.block_size)
 
-        # slope should now be (sample_size * block_size), reshape
-        slope = slope.reshape(self.sample_size, self.block_size)
+            # # Add some noise to allow the MAP to work. This should not change the
+            # # estimated maximum
+            # slope -= jax.random.truncated_normal(
+            #     prng_key, 0.0, 0.1, shape=slope.shape
+            # )
 
-        # Add some noise to allow the MAP to work. This should not change the estimated
-        # maximum
-        slope -= jax.random.truncated_normal(prng_key, 0.0, 0.1, shape=slope.shape)
-
-        # Get the maximum in each block
-        block_maxes = slope.max(axis=-1)
+            # Get the maximum in each block
+            block_maxes = block_maxes.at[i : i + self.stride_length].set(
+                slope.max(axis=-1)
+            )
 
         # Fit a generalized extreme value distribution to these data using PyMC3
         # (a Bayesian analysis using MCMC for inference).
@@ -131,7 +147,7 @@ class SensitivityAnalyzer(object):
             idata = pm.sample(
                 10000,
                 chains=4,
-                tune=3000,
+                tune=5000,
                 step=step,
                 start={"mu": mu_start, "sigma": sigma_start, "xi": -0.1},
                 return_inferencedata=True,

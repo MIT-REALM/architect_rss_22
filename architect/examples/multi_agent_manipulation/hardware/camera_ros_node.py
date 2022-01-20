@@ -61,9 +61,7 @@ class CameraNode(object):
         # Initialize the camera and set the resolution to 1920x1080
         # and FPS to the set rate
         self.camera = cv2.VideoCapture(0)
-        self.camera.set(
-            cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc("M", "J", "P", "G")
-        )
+        self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc("M", "J", "P", "G"))
         self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         self.camera.set(cv2.CAP_PROP_FPS, 30.0)

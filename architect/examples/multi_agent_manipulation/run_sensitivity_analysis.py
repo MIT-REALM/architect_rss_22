@@ -37,10 +37,14 @@ def run_analysis():
     )
 
     # Create the analyzer
-    sample_size = 500
+    sample_size = 3000
+    stride_length = 10
     block_size = 1000
     sensitivity_analyzer = SensitivityAnalyzer(
-        mam_design_problem, sample_size, block_size
+        mam_design_problem,
+        sample_size,
+        block_size,
+        stride_length=stride_length,
     )
 
     # Analyze!
@@ -55,6 +59,11 @@ def run_analysis():
     print("Summary:")
     print(summary)
     print("----------------------------------")
+
+    # Save data
+    idata.observed_data.to_pandas().to_csv(
+        "logs/multi_agent_manipulation/sensitivity/block_maxes.csv"
+    )
 
     # Plot the posterior distributions
     az.plot_trace(idata)
