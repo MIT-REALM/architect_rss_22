@@ -1,6 +1,7 @@
 import time
 
 import jax
+import jax.numpy as jnp
 import arviz as az
 import matplotlib.pyplot as plt
 
@@ -17,10 +18,10 @@ def run_analysis():
     dt = 0.5
     agv_design_problem = make_agv_localization_design_problem_analysis(T, dt)
 
-    # # Set it with the optimal parameters found using `run_optimizer`
-    # agv_design_problem.design_params.set_values(
-    #     jnp.array([2.535058, 0.09306894, -1.6945883, -1.0, 0.0, -0.8280163])
-    # )
+    # Set it with the optimal parameters found using `run_optimizer`
+    agv_design_problem.design_params.set_values(
+        jnp.array([2.535058, 0.09306894, -1.6945883, -1.0, 0.0, -0.8280163])
+    )
 
     # Create the analyzer
     sample_size = 1000
@@ -42,6 +43,11 @@ def run_analysis():
     print("Summary:")
     print(summary)
     print("----------------------------------")
+
+    # Save data
+    idata.observed_data.to_pandas().to_csv(
+        "logs/agv_localization/worst_case_cost/block_maxes.csv"
+    )
 
     # Plot the posterior distributions
     az.plot_trace(idata)

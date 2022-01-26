@@ -10,7 +10,7 @@ from architect.examples.multi_agent_manipulation.mam_plotting import (
     plot_box_trajectory,
     plot_turtle_trajectory,
     make_box_patches,
-    # make_pushing_animation,
+    make_pushing_animation,
 )
 from architect.examples.multi_agent_manipulation.mam_simulator import (
     turtlebot_dynamics_step,
@@ -342,30 +342,38 @@ def test_push():
         )
     )
 
-    # Sample exogenous parameters
-    prng_key, subkey = jax.random.split(prng_key)
-    exogenous_sample = mam_design_problem.exogenous_params.sample(subkey)
+    fig, axs = plt.subplots(4, 7)
+    for row in axs:
+        for ax in row:
+            print("Simulating...")
 
-    # Simulate
-    desired_box_pose = exogenous_sample[4:7]
-    turtle_states, box_states = mam_simulate_single_push_two_turtles(
-        design_param_values,  # optimized
-        # mam_design_problem.design_params.get_values(),  # initial
-        exogenous_sample,
-        layer_widths,
-        dt,
-    )
+            # Sample exogenous parameters
+            prng_key, subkey = jax.random.split(prng_key)
+            exogenous_sample = mam_design_problem.exogenous_params.sample(subkey)
 
-    plot_box_trajectory(box_states, 0.61, 2, plt.gca())
-    plot_turtle_trajectory(turtle_states[:, 0, :], 0.08, 2, plt.gca())
-    plot_turtle_trajectory(turtle_states[:, 1, :], 0.08, 2, plt.gca())
-    make_box_patches(desired_box_pose, 1.0, 0.61, plt.gca(), hatch=True)
+            # Simulate
+            desired_box_pose = exogenous_sample[4:7]
+            turtle_states, box_states = mam_simulate_single_push_two_turtles(
+                design_param_values,  # optimized
+                # mam_design_problem.design_params.get_values(),  # initial
+                exogenous_sample,
+                layer_widths,
+                dt,
+            )
 
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.xlim([-0.75, 1.0])
-    plt.ylim([-0.75, 1.0])
-    plt.gca().set_aspect("equal")
+            plot_box_trajectory(box_states, 0.61, 2, ax)
+            plot_turtle_trajectory(turtle_states[:, 0, :], 0.08, 2, ax)
+            plot_turtle_trajectory(turtle_states[:, 1, :], 0.08, 2, ax)
+            make_box_patches(desired_box_pose, 1.0, 0.61, ax, hatch=True)
+
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
+            ax.set_xlim([-0.75, 1.0])
+            ax.set_ylim([-0.75, 1.0])
+            ax.set_aspect("equal")
+            ax.axis('off')
+
+    fig.tight_layout()
     plt.show()
 
     # box_size = 0.61

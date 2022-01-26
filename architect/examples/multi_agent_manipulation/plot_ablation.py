@@ -4,8 +4,7 @@ import pandas as pd
 
 
 def plot_agv_ablation_ad_vs_df():
-    sns.set_theme(context="talk", style="white")
-    sns.set(font_scale=3)
+    sns.set_theme(context="talk", style="white", font_scale=2)
     # Load in the data from my lab notebook
     df = pd.DataFrame(
         [
@@ -53,8 +52,7 @@ def plot_agv_ablation_ad_vs_df():
 
 
 def plot_agv_ablation_vr():
-    sns.set_theme(context="talk", style="white")
-    sns.set(font_scale=3)
+    sns.set_theme(context="talk", style="white", font_scale=2)
     # Load in the data from my lab notebook
     df = pd.DataFrame(
         [
