@@ -19,10 +19,6 @@ Architect is a tool for **automated**, **robust**, **co-design**. Let's break th
 - **Robust**: Solid engineering design requires not only optimizing for the expected, but also planning for the unexpected. Architect helps make sure that your designs are robust to changes in the environment or operating domain --- Architect helps your designs fly even when the winds change.
 - **Co-design**: Instead of thinking about the software and control system design separately from the hardware design, Architect helps you optimize both at the same time (co-designing both the software and hardware). More importantly, Architect is a tool for improving the design process: it's your new co-designer!
 
-## Let's see an example
-
-**TODO**: Show how Architect works with an example. Refer to more technical details in papers/wiki/docs
-
 ## Try it for yourself
 
 To install Architect, run the following commands:
@@ -42,6 +38,20 @@ python -m ipykernel install --user --name=architect_env
 ```
 
 Hardware experiments currently require `rospy` (must be installed separately) and other dependencies specified in `requirements_hw.txt`
+
+## Let's see an example
+
+If you want to see a simple example of Architect at work, run:
+```
+conda activate architect_env
+python architect/examples/agv_localization/run_optimizer.py
+```
+
+This will solve a design problem where we need to optimize controller gains and range beacon locations to enable an autonomous ground vehicle (AGV) to navigate through a passageway. It will plot the results of the optimization after running for ~5 minutes.
+
+A more complex example is optimizing a pushing strategy for multi-robot collaborative manipulation. You can run a pre-optimized strategy with `python architect/examples/multi_agent_manipulation/run_simulator.py`, and you can run the optimization yourself (expect ~1 hour runtime) with `python architect/examples/multi_agent_manipulation/run_optimizer.py`.
+
+For both examples, you can run the sensitivity and worst-case cost analyses with `python architect/examples/<example_name>/run_sensitivity_analysis.py` and `python architect/examples/<example_name>/run_worst_case_analysis.py`.
 
 ## Warning: Research code may contain sharp edges!
 

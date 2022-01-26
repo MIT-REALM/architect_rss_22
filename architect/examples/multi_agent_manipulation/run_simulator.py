@@ -10,7 +10,7 @@ from architect.examples.multi_agent_manipulation.mam_plotting import (
     plot_box_trajectory,
     plot_turtle_trajectory,
     make_box_patches,
-    make_pushing_animation,
+    make_pushing_animation,  # noqa
 )
 from architect.examples.multi_agent_manipulation.mam_simulator import (
     turtlebot_dynamics_step,
