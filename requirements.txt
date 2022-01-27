@@ -14,11 +14,8 @@ ipykernel
 ipywidgets
 tqdm
 
-# Optimization and statistics
+# Optimization
 scipy
-pymc3
-arviz
-aesara
 nevergrad
 
 # Learning packages
@@ -26,3 +23,9 @@ torch >= 1.9.0
 
 # Autodiff
 jax[cpu]
+
+# Probabilistic programming
+pymc3
+arviz
+aesara
+numpyro
