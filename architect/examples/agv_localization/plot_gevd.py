@@ -23,7 +23,7 @@ def plot_gevd(
     label=None,
     plot_97=False,
     lw=2,
-    metric="max error"
+    metric="max error",
 ):
     """Plot the generalized extreme value distribution PDF with the given parameters"""
     resolution = int(1e3)

@@ -78,27 +78,32 @@ def plot_agv_ablation_vr():
         ]
     )
 
-    # Plot
-    fig, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]}, figsize=(18, 8))
+    with sns.color_palette(sns.color_palette("pastel")):
+        # Plot
+        fig, axs = plt.subplots(
+            1, 2, gridspec_kw={"width_ratios": [3, 1]}, figsize=(18, 8)
+        )
 
-    # The left axis plots all cost information
-    left_plot_mask = df["Metric"] != "CPU Time (s)"
-    sns.barplot(x="Metric", y="Value", hue="Method", data=df[left_plot_mask], ax=axs[0])
-    axs[0].set_xlabel("")
-    axs[0].set_ylabel("")
+        # The left axis plots all cost information
+        left_plot_mask = df["Metric"] != "CPU Time (s)"
+        sns.barplot(
+            x="Metric", y="Value", hue="Method", data=df[left_plot_mask], ax=axs[0]
+        )
+        axs[0].set_xlabel("")
+        axs[0].set_ylabel("")
 
-    # The right axis plots time information
-    right_plot_mask = df["Metric"] == "CPU Time (s)"
-    sns.barplot(
-        x="Metric", y="Value", hue="Method", data=df[right_plot_mask], ax=axs[1]
-    )
-    axs[1].set_xlabel("")
-    axs[1].set_ylabel("")
-    axs[1].get_legend().remove()
+        # The right axis plots time information
+        right_plot_mask = df["Metric"] == "CPU Time (s)"
+        sns.barplot(
+            x="Metric", y="Value", hue="Method", data=df[right_plot_mask], ax=axs[1]
+        )
+        axs[1].set_xlabel("")
+        axs[1].set_ylabel("")
+        axs[1].get_legend().remove()
 
-    fig.tight_layout()
+        fig.tight_layout()
 
-    plt.show()
+        plt.show()
 
 
 if __name__ == "__main__":

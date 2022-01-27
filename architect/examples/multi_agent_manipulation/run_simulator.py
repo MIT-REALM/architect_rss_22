@@ -371,7 +371,7 @@ def test_push():
             ax.set_xlim([-0.75, 1.0])
             ax.set_ylim([-0.75, 1.0])
             ax.set_aspect("equal")
-            ax.axis('off')
+            ax.axis("off")
 
     fig.tight_layout()
     plt.show()
