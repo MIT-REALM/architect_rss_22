@@ -1,5 +1,5 @@
 """A ROS node for testing the AGV navigation task in hardware."""
-from typing import Tuple
+from typing import Optional, Tuple
 
 import rospy
 from cv_bridge import CvBridge
@@ -337,7 +337,7 @@ class MAMROSController(object):
 
         # Set up somewhere to store the plan
         self.desired_box_pose = None
-        self.spline_pts = None
+        self.spline_pts: Optional[jnp.ndarray] = None
         self.push_duration = 7.0
         self.push_start_time = 0.0
         # Publish the desired box pose
@@ -474,6 +474,9 @@ class MAMROSController(object):
                 t = pushing_time_elapsed / self.push_duration
 
                 # Execute the plan on each turtlebot
+                if self.spline_pts is None:
+                    raise ValueError("self.spline_pts not set!")
+
                 self.turtle1.track_spline(
                     self.spline_pts[0, 0, :],
                     self.spline_pts[0, 1, :],

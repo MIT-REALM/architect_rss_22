@@ -45,12 +45,16 @@ class SensitivityAnalyzer(object):
         self.stride_length = stride_length
 
     def analyze(
-        self, prng_key: PRNGKeyArray
+        self, prng_key: PRNGKeyArray, inject_noise: bool = False,
     ) -> Tuple[pd.DataFrame, az.data.inference_data.InferenceData]:
         """Conduct the sensitivity analysis
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
+            inject_noise: if True, a small amount of (strictly negative) noise will
+                be added to the measured sensitivities. This can help in simple cases
+                where the sensitivity is constant (and the corresponding extreme value
+                distribution is degenerate).
         returns: a tuple
             - a pandas DataFrame containing summary statistics for fitting a GEVD
               to the observed sensitivities
@@ -102,11 +106,12 @@ class SensitivityAnalyzer(object):
             assert slope.shape == (self.stride_length * self.block_size,)
             slope = slope.reshape(self.stride_length, self.block_size)
 
-            # # Add some noise to allow the MAP to work. This should not change the
-            # # estimated maximum
-            # slope -= jax.random.truncated_normal(
-            #     prng_key, 0.0, 0.1, shape=slope.shape
-            # )
+            if inject_noise:
+                # Add some noise to make the observed sensitivities non-degenerate.
+                # This should not change the estimated maximum b/c we truncate the noise
+                slope -= jax.random.truncated_normal(
+                    prng_key, 0.0, 0.1, shape=slope.shape
+                )
 
             # Get the maximum in each block
             block_maxes = block_maxes.at[i : i + self.stride_length].set(

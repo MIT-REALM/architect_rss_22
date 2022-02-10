@@ -62,7 +62,7 @@ def test_SensitivityAnalyzer_analyze():
     key = jax.random.PRNGKey(0)
 
     # Run the analysis
-    summary, _ = sensitivity_analyzer.analyze(key)
+    summary, _ = sensitivity_analyzer.analyze(key, inject_noise=True)
 
     # Make sure that the estimated upper bound is about right
     mu = summary["mean"]["mu"]

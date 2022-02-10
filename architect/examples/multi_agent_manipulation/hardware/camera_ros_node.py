@@ -1,5 +1,5 @@
 """A ROS node for getting turtlebot and box positions from an overhead camera."""
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import apriltag
 import cv2
@@ -169,7 +169,7 @@ class CameraNode(object):
 
     def turtlebot_box_poses_from_image(
         self, grayscale_img: np.ndarray, color_img: np.ndarray
-    ) -> Tuple[Optional[np.ndarray], np.ndarray]:
+    ) -> Tuple[List[Optional[np.ndarray]], np.ndarray]:
         """Get the turtlebot and box poses from an image
 
         args:
@@ -267,7 +267,7 @@ class CameraNode(object):
         # Process the rest of the points
         tags = [box_tag, turtle1_tag, turtle2_tag]
         tag_names = ["Box", "Turtle1", "Turtle2"]
-        poses = [None, None, None]
+        poses: List[Optional[np.ndarray]] = [None, None, None]
         for idx, (tag, tag_name) in enumerate(zip(tags, tag_names)):
             # Skip if no detection
             if tag is None:
@@ -376,8 +376,10 @@ class CameraNode(object):
 
         # Flip y axis and orientation to account for image axes
         for i in range(len(poses)):
-            if poses[i] is not None:
-                poses[i][1:] *= -1.0
+            pose_i = poses[i]
+            if pose_i is not None:
+                pose_i[1:] *= -1.0
+                poses[i] = pose_i
 
         return poses, annotated_img
 

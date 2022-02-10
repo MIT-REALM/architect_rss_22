@@ -6,11 +6,11 @@ import numpy as np
 from architect.examples.multi_agent_manipulation.mam_design_problem import (
     make_mam_design_problem,
 )
-from architect.examples.multi_agent_manipulation.mam_plotting import (
+from architect.examples.multi_agent_manipulation.mam_plotting import (  # noqa
     plot_box_trajectory,
     plot_turtle_trajectory,
     make_box_patches,
-    make_pushing_animation,  # noqa
+    make_pushing_animation,
 )
 from architect.examples.multi_agent_manipulation.mam_simulator import (
     turtlebot_dynamics_step,
