@@ -45,7 +45,9 @@ class SensitivityAnalyzer(object):
         self.stride_length = stride_length
 
     def analyze(
-        self, prng_key: PRNGKeyArray, inject_noise: bool = False,
+        self,
+        prng_key: PRNGKeyArray,
+        inject_noise: bool = False,
     ) -> Tuple[pd.DataFrame, az.data.inference_data.InferenceData]:
         """Conduct the sensitivity analysis
 
