@@ -107,9 +107,7 @@ def test_STLAnd():
 
     # Check semantics
     compare_mask = jnp.searchsorted(r.t, signal.t)
-    satisfied = jnp.logical_and(
-        jnp.abs(signal.x) < 0.1, signal.x > 0.0
-    )
+    satisfied = jnp.logical_and(jnp.abs(signal.x) < 0.1, signal.x > 0.0)
 
     assert ((r.x[compare_mask] > 0) == satisfied).all()
 

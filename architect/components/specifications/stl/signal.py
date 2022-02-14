@@ -159,7 +159,7 @@ class SampledSignal(object):
 
     # Define negation
     def __neg__(self) -> "SampledSignal":
-        return -1 * self
+        return jnp.array(-1.0) * self
 
     __rmul__ = __mul__
 

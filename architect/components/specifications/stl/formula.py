@@ -23,7 +23,7 @@ class STLFormula(ABC):
         super(STLFormula, self).__init__()
 
     @abstractmethod
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> jnp.ndarray:
+    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -134,7 +134,7 @@ class STLNegation(STLFormula):
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
-        return -1 * self.child(s, smoothing)
+        return -self.child(s, smoothing)
 
 
 class STLAnd(STLFormula):
