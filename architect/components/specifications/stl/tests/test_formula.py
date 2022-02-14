@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa
 
 
 from architect.components.specifications.stl.signal import SampledSignal
@@ -12,6 +12,8 @@ from architect.components.specifications.stl.formula import (
     STLUntimedEventually,
     STLTimedEventually,
     STLUntimedUntil,
+    STLUntimedAlways,
+    STLTimedAlways,
 )
 
 
@@ -84,32 +86,32 @@ def test_STLNegation():
 
 
 def test_STLAnd():
-    # # Construct a test signal
-    # signal = make_test_signal()
+    # Construct a test signal
+    signal = make_test_signal()
 
-    # # Make a predicate to test if the signal is smaller than 0.1
-    # p1 = make_test_predicate()
+    # Make a predicate to test if the signal is smaller than 0.1
+    p1 = make_test_predicate()
 
-    # # Make a second test predicate to test if the signal is positive
-    # mu = lambda x_t: x_t
-    # p2 = STLPredicate(mu, 0.0)
+    # Make a second test predicate to test if the signal is positive
+    mu = lambda x_t: x_t
+    p2 = STLPredicate(mu, 0.0)
 
-    # # And them together
-    # p_and = STLAnd([p1, p2])
+    # And them together
+    p_and = STLAnd([p1, p2])
 
-    # # Compute robustness
-    # r = p_and(signal, smoothing=1e6)
+    # Compute robustness
+    r = p_and(signal, smoothing=1e6)
 
-    # # Check shapes
-    # assert r.x.shape == (r.T, 1)
+    # Check shapes
+    assert r.x.shape == (r.T, 1)
 
-    # # Check semantics
-    # compare_mask = jnp.searchsorted(r.t, signal.t)
-    # satisfied = jnp.logical_and(
-    #     jnp.abs(signal.x) < 0.1, signal.x > 0.0
-    # )
+    # Check semantics
+    compare_mask = jnp.searchsorted(r.t, signal.t)
+    satisfied = jnp.logical_and(
+        jnp.abs(signal.x) < 0.1, signal.x > 0.0
+    )
 
-    # assert ((r.x[compare_mask] > 0) == satisfied).all()
+    assert ((r.x[compare_mask] > 0) == satisfied).all()
 
     # Test with coarser time samples
     t = jnp.arange(0.0, 1.0, 0.2)
@@ -295,3 +297,76 @@ def test_STLUntimedUntil():
     unsatisfied_mask = r.t > 5.5
     assert (r.x[satisfied_mask] > 0).all()
     assert (r.x[unsatisfied_mask] < 0).all()
+
+
+def test_STLUntimedAlways():
+    # Construct a test signal
+    signal = make_test_signal()
+
+    # Make a predicate to test if the absolute value of the signal is small
+    mu = lambda x_t: -jnp.abs(x_t)
+    p_small = STLPredicate(mu, -0.1)
+
+    # Make a predicate saying that the signal is always small (between zero and
+    # infinite time from now)
+    p_always_small = STLUntimedAlways(p_small)
+
+    # Compute robustness
+    r = p_always_small(signal, smoothing=1e6)
+
+    # Check shapes
+    assert r.T == signal.T
+    assert r.x.shape == (r.T, 1)
+
+    # Check semantics. This signal falls below 0.1 for the last time at t \approx 4.42
+    satisfied_mask = r.t >= 4.43
+    unsatisfied_mask = r.t <= 4.42
+    assert (r.x[satisfied_mask] > 0).all()
+    assert (r.x[unsatisfied_mask] < 0).all()
+
+    # # Plot
+    # plt.plot(signal.t, signal.x)
+    # plt.plot(r.t, r.x)
+    # plt.plot(r.t, r.x > 0.0)
+    # plt.plot(signal.t, signal.t * 0, "k:")
+    # plt.plot(r.t, r.t * 0 + 0.1, "k:")
+    # plt.plot(r.t, r.t * 0 - 0.1, "k:")
+    # plt.show()
+
+
+def test_STLTimedAlways():
+    # Construct a test signal
+    # Construct a test signal
+    t = jnp.arange(0, 5.0, 0.05)
+    x = -2.5 + t
+    signal = SampledSignal(t, x)
+
+    # Make a predicate to test if the absolute value of the signal is small
+    mu = lambda x_t: -jnp.abs(x_t)
+    p_small = STLPredicate(mu, -0.2)
+
+    # Make a predicate saying that the signal stays small (between 1 and 1.1
+    # seconds from now)
+    p_always_small = STLTimedAlways(p_small, 1.0, 1.1)
+
+    # Compute robustness
+    r = p_always_small(signal, smoothing=1e6)
+
+    # Check shapes
+    assert r.T == signal.T
+    assert r.x.shape == (r.T, 1)
+
+    # Check semantics. This signal satisfies from 1.3 to 1.6 s
+    satisfied_mask = jnp.logical_and(r.t > 1.31, r.t < 1.59)
+    unsatisfied_mask = jnp.logical_or(r.t < 1.3, r.t > 1.6)
+    assert (r.x[satisfied_mask] > 0).all()
+    assert (r.x[unsatisfied_mask] < 0).all()
+
+    # # Plot
+    # plt.plot(signal.t, signal.x)
+    # plt.plot(r.t, r.x)
+    # plt.plot(r.t, r.x > 0.0)
+    # plt.plot(signal.t, signal.t * 0, "k:")
+    # plt.plot(r.t, r.t * 0 + 0.2, "k:")
+    # plt.plot(r.t, r.t * 0 - 0.2, "k:")
+    # plt.show()

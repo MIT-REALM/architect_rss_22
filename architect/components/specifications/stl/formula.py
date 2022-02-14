@@ -528,3 +528,87 @@ class STLUntimedUntil(STLFormula):
         _, until_robustness = jax.lax.scan(f, -jnp.inf, r_min.x, reverse=True)
 
         return SampledSignal(r_min.t, until_robustness)
+
+
+class STLUntimedAlways(STLFormula):
+    """Represents an STL temporal operator for always without a time bound"""
+
+    def __init__(self, child: STLFormula):
+        """Initialize an STL formula for an untimed always. This formula is satisfied
+        for a given signal if its child is satisfied at all points in the future.
+
+        Implemented as not eventually not child.
+
+        args:
+            child: an STL formula that should always hold
+        """
+        super(STLUntimedAlways, self).__init__()
+
+        self.child = STLNegation(STLUntimedEventually(STLNegation(child)))
+
+    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+        """Evaluates this formula on the given signal, returning its robustness trace.
+
+        The robustness trace is a SampledSignal of the same length as s where each
+        sample represents the robustness of the subsignal of s starting at that sample
+        and continuing to the end of s. I.e. if the robustness trace has sample
+        (t_i, r_i), then the subsignal s[i:] has robustness r_i with respect to this
+        formula.
+
+        If robustness is positive, then the formula is satisfied. If the robustness
+        is negative, then the formula is not satisfied.
+
+        An untimed always operator is equivalent to not (eventually not child)
+
+        args:
+            s: the signal upon which this formula is evaluated.
+            smoothing: the parameter determining how much to smooth non-continuous
+                elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
+                smoothing for max and min.
+        returns:
+            SampledSignal of the robustness trace for this formula and the given signal.
+        """
+        return self.child(s, smoothing)
+
+
+class STLTimedAlways(STLFormula):
+    """Represents an STL temporal operator for always with a time bound"""
+
+    def __init__(self, child: STLFormula, t_start: float, t_end: float):
+        """Initialize an STL formula for an untimed always. This formula is satisfied
+        for a given signal if its child is satisfied at all points in the future.
+
+        Implemented as not eventually not child.
+
+        args:
+            child: an STL formula that should always hold
+            t_start: start point (inclusive) of interval
+            t_end: end point (inclusive) of interval
+        """
+        super(STLTimedAlways, self).__init__()
+
+        self.child = STLNegation(STLTimedEventually(STLNegation(child), t_start, t_end))
+
+    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+        """Evaluates this formula on the given signal, returning its robustness trace.
+
+        The robustness trace is a SampledSignal of the same length as s where each
+        sample represents the robustness of the subsignal of s starting at that sample
+        and continuing to the end of s. I.e. if the robustness trace has sample
+        (t_i, r_i), then the subsignal s[i:] has robustness r_i with respect to this
+        formula.
+
+        If robustness is positive, then the formula is satisfied. If the robustness
+        is negative, then the formula is not satisfied.
+
+        An untimed always operator is equivalent to not (eventually not child)
+
+        args:
+            s: the signal upon which this formula is evaluated.
+            smoothing: the parameter determining how much to smooth non-continuous
+                elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
+                smoothing for max and min.
+        returns:
+            SampledSignal of the robustness trace for this formula and the given signal.
+        """
+        return self.child(s, smoothing)

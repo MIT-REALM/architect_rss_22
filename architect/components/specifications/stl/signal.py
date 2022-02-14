@@ -2,8 +2,6 @@
 import jax.numpy as jnp
 from jax.nn import logsumexp
 
-import time
-
 
 class SampledSignal(object):
     """SampledSignal defines a discrete-time continuous-value signal."""
