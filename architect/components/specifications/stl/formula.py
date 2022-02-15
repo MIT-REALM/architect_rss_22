@@ -178,8 +178,8 @@ class STLAnd(STLFormula):
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get children's robustness values
-        child1_r = self.children[0](s)
-        child2_r = self.children[1](s)
+        child1_r = self.children[0](s, smoothing)
+        child2_r = self.children[1](s, smoothing)
 
         # Use the trick where min(x, y) = -max(-x, -y)
         r = -SampledSignal.max1d(-child1_r, -child2_r, smoothing)
@@ -227,8 +227,8 @@ class STLOr(STLFormula):
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get children's robustness values
-        child1_r = self.children[0](s)
-        child2_r = self.children[1](s)
+        child1_r = self.children[0](s, smoothing)
+        child2_r = self.children[1](s, smoothing)
 
         # Compute the maximum
         r = SampledSignal.max1d(child1_r, child2_r, smoothing)
@@ -358,7 +358,7 @@ class STLTimedEventually(STLFormula):
 
         self.child = child
 
-        if t_start < 0.0 or t_end <= t_start:
+        if t_start < 0.0 or t_end < t_start:
             raise ValueError(
                 "Start time must be positive and end time must be after start"
             )
@@ -528,6 +528,63 @@ class STLUntimedUntil(STLFormula):
         _, until_robustness = jax.lax.scan(f, -jnp.inf, r_min.x, reverse=True)
 
         return SampledSignal(r_min.t, until_robustness)
+
+
+class STLTimedUntil(STLFormula):
+    """Represents an STL temporal operator for until with a time bound"""
+
+    def __init__(
+        self, invariant: STLFormula, release: STLFormula, t_start: float, t_end: float
+    ):
+        """Initialize an STL formula for a timed until. This formula is satisfied
+        for a given signal if invariant is satisfied at all times until release is
+        satisfied, which must happen during the given interval.
+
+        args:
+            invariant: an STL formula that should hold until release holds
+            release: an STL formula that should hold eventually
+            t_start: start point (inclusive) of interval
+            t_end: end point (inclusive) of interval
+        """
+        super(STLTimedUntil, self).__init__()
+
+        # Make use of the fact that x U_[a, b] y is equivalent to
+        # (eventually_[a, b] y) and (always_[0, a] x U y)
+        self.child = STLAnd(
+            [
+                STLTimedEventually(release, t_start, t_end),
+                STLTimedAlways(STLUntimedUntil(invariant, release), 0, t_start),
+            ]
+        )
+
+    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+        """Evaluates this formula on the given signal, returning its robustness trace.
+
+        The robustness trace is a SampledSignal of the same length as s where each
+        sample represents the robustness of the subsignal of s starting at that sample
+        and continuing to the end of s. I.e. if the robustness trace has sample
+        (t_i, r_i), then the subsignal s[i:] has robustness r_i with respect to this
+        formula.
+
+        If robustness is positive, then the formula is satisfied. If the robustness
+        is negative, then the formula is not satisfied.
+
+        An timed until operator has robustness value at any time t equal to that of
+        its equivalent child. Recall that we re-write the timed until as an equivalent
+        child formula
+
+        x U_[a, b] y <-> (eventually_[a, b] y) and (always_[0, a] x U y)
+
+        args:
+            s: the signal upon which this formula is evaluated.
+            smoothing: the parameter determining how much to smooth non-continuous
+                elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
+                smoothing for max and min.
+        returns:
+            SampledSignal of the robustness trace for this formula and the given signal.
+        """
+        # Just evaluate the child, which is a rewritten form of the timed until
+        return self.child(s, smoothing)
 
 
 class STLUntimedAlways(STLFormula):

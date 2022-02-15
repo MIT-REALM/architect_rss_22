@@ -12,6 +12,7 @@ from architect.components.specifications.stl.formula import (
     STLUntimedEventually,
     STLTimedEventually,
     STLUntimedUntil,
+    STLTimedUntil,
     STLUntimedAlways,
     STLTimedAlways,
 )
@@ -230,7 +231,7 @@ def test_STLUntimedEventually():
 
 def test_STLTimedEventually():
     # Construct a test signal
-    t = jnp.arange(0, 5.0, 0.1)
+    t = jnp.arange(0, 5.0, 0.05)
     x = -2.5 + t
     signal = SampledSignal(t, x)
 
@@ -297,6 +298,45 @@ def test_STLUntimedUntil():
     assert (r.x[unsatisfied_mask] < 0).all()
 
 
+def test_STLTimedUntil():
+    # Construct test signals
+    signal0 = make_test_signal(dt=0.1)
+    x1 = 1.1 - signal0.t / 5
+    x2 = -1.0 + signal0.t / 5
+    x = jnp.vstack((x1, x2)).T
+    signal = SampledSignal(signal0.t, x)
+
+    # Make a predicate to test if a signal is positive
+    mu1 = lambda x_t: x_t[0]
+    p_pos1 = STLPredicate(mu1, 0.0)
+    mu2 = lambda x_t: x_t[1]
+    p_pos2 = STLPredicate(mu2, 0.0)
+
+    # Make a formula for signal1 positive until signal2 is positive, which has to happen
+    # in some interval from now
+    p_until = STLTimedUntil(p_pos1, p_pos2, 1.0, 2.0)
+
+    r = p_until(signal, smoothing=1e6)
+
+    # # Plot
+    # plt.plot(signal.t, signal.x)
+    # plt.plot(r.t, r.x, label="timed until")
+    # plt.plot(r.t, r.x > 0.0)
+    # plt.plot(signal.t, signal.t * 0, "k:")
+    # plt.legend()
+    # plt.show()
+
+    # Check shapes
+    assert r.T == signal.T + 2  # 2 intersection points get added
+    assert r.x.shape == (r.T, 1)
+
+    # Check semantics. Satisfied between t = 3.0 and t = 4.5
+    satisfied_mask = jnp.logical_and(r.t > 3.0, r.t < 4.5)
+    unsatisfied_mask = jnp.logical_or(r.t < 3.0, r.t > 4.5)
+    assert (r.x[satisfied_mask] > 0).all()
+    assert (r.x[unsatisfied_mask] < 0).all()
+
+
 def test_STLUntimedAlways():
     # Construct a test signal
     signal = make_test_signal()
@@ -334,8 +374,7 @@ def test_STLUntimedAlways():
 
 def test_STLTimedAlways():
     # Construct a test signal
-    # Construct a test signal
-    t = jnp.arange(0, 5.0, 0.05)
+    t = jnp.arange(0, 5.0, 0.01)
     x = -2.5 + t
     signal = SampledSignal(t, x)
 
