@@ -8,7 +8,7 @@ class AGVDesignParameters(DesignParameters):
 
     def __init__(self):
         """
-        Initialize the design parameters for the AGV localization porblem.
+        Initialize the design parameters for the AGV localization problem.
         """
         names = [
             "initial_x",

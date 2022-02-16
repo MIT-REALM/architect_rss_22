@@ -19,7 +19,7 @@ class AGVExogenousParameters(ExogenousParameters):
         observation_noise_covariance: jnp.ndarray,
     ):
         """
-        Initialize the exogenous parameters for the AGV localization porblem.
+        Initialize the exogenous parameters for the AGV localization problem.
 
         args:
             time_steps: the number of discrete timesteps
