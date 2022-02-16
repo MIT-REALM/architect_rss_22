@@ -4,7 +4,7 @@ from architect.design import DesignParameters
 
 
 class AGVDesignParameters(DesignParameters):
-    """ExogenousParameters for the AGV localization task"""
+    """DesignParameters for the AGV localization task"""
 
     def __init__(self):
         """
