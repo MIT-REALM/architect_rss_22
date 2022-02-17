@@ -1,5 +1,7 @@
 from typing import Sequence, Tuple, Optional
 
+import jax.numpy as jnp
+
 from architect.design import DesignParameters
 
 
@@ -22,6 +24,16 @@ class SatDesignParameters(DesignParameters):
         ]
         n_params = n_controls * n_states + time_steps * (n_controls + n_states)
         super(SatDesignParameters, self).__init__(n_params, names)
+
+        # Initialize the control gains
+        gains = jnp.array(
+            [
+                [100.0, 0.0, 0.0, 100.0, 0.0, 0.0],
+                [0.0, 100.0, 0.0, 0.0, 100.0, 0.0],
+                [0.0, 0.0, 100.0, 0.0, 0.0, 100.0],
+            ]
+        )
+        self._values = self._values.at[:n_controls * n_states].set(gains.reshape(-1))
 
     @property
     def bounds(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:

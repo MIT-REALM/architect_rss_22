@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 
 from architect.components.specifications.stl.signal import SampledSignal
@@ -37,6 +38,35 @@ def test_SampledSignal_stack():
 
     assert signal.n == 2
     assert signal.T == t1.size + t2.size - 2  # overlap at 0.0 and 1.5
+
+
+def test_SampledSignal_stack_grad():
+    # Create two signals to test
+    t1 = jnp.arange(0.0, 3, 0.3)
+    x1 = t1 ** 2
+    signal1 = SampledSignal(t1, x1)
+    t2 = jnp.arange(0.0, 3, 0.5)
+    x2 = t2 ** 0.5
+
+    stack_f = lambda x: SampledSignal.stack(signal1, SampledSignal(t2, x)).x[0, 1]
+    stacked_x_grad = jax.grad(stack_f)(x2)
+
+    assert stacked_x_grad.shape == x2.shape
+    assert jnp.allclose(stacked_x_grad, jnp.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+
+
+def test_SampledSignal_stack_vmap():
+    # Create two signals to test
+    t1 = jnp.arange(0.0, 3, 0.3)
+    x1 = t1 ** 2
+    signal1 = SampledSignal(t1, x1)
+    t2 = jnp.arange(0.0, 3, 0.5)
+    x2 = t2 ** 0.5
+
+    stack_f = lambda x: SampledSignal.stack(signal1, SampledSignal(t2, x)).x
+    stacked_x_vmap = jax.vmap(stack_f, in_axes=0)(jnp.vstack([x2] * 2))
+
+    assert stacked_x_vmap.shape == (2, t1.size + t2.size - 2, 2)
 
 
 def test_SampledSignal_getitem():
@@ -93,3 +123,56 @@ def test_SampledSignal_subsignal_time():
     assert jnp.min(subsignal.t) == t_start
     assert jnp.max(subsignal.t) == t_end - 0.1
     assert subsignal.x.shape[0] == subsignal.T
+
+
+def test_SampledSignal_max1d():
+    # Create two signals to test
+    t = jnp.arange(0.0, 3.0, 0.3)
+    x1 = 0.5 - t
+    x2 = 0.0 * t
+    signal1 = SampledSignal(t, x1)
+    signal2 = SampledSignal(t, x2)
+
+    smoothing = 1e6
+    signal = SampledSignal.max1d(signal1, signal2, smoothing)
+
+    assert signal.n == 1
+    assert signal.T == t.size + 1  # 1 intersection
+
+
+def test_SampledSignal_max1d_grad():
+    # Create two signals to test
+    t = jnp.arange(0.0, 3.0, 0.3)
+    x1 = 0.5 - t
+    x2 = 0.0 * t
+    signal1 = SampledSignal(t, x1)
+
+    smoothing = 1e6
+    max_sum_f = lambda x: SampledSignal.max1d(
+        signal1, SampledSignal(t, x), smoothing
+    ).x.sum()
+    max_sum_grad = jax.grad(max_sum_f)(x2)
+
+    assert max_sum_grad.shape == x2.shape
+    # With large smoothing constant, the max should not depend on x2 at the first
+    # element (where x1 is bigger), but it should depend on x2 at the last element
+    # (where x2 is bigger)
+    assert jnp.isclose(max_sum_grad[0], 0.0)
+    assert jnp.isclose(max_sum_grad[-1], 1.0)
+
+
+def test_SampledSignal_max1d_vmap():
+    # Create two signals to test
+    t = jnp.arange(0.0, 3.0, 0.3)
+    x1 = 0.5 - t
+    x2 = 0.0 * t
+    signal1 = SampledSignal(t, x1)
+
+    smoothing = 1e6
+    # vmap currently only works with interpolate=False
+    max_sum_f = lambda x: SampledSignal.max1d(
+        signal1, SampledSignal(t, x), smoothing, interpolate=False
+    ).x.sum()
+    max_sum_vmap = jax.vmap(max_sum_f, in_axes=0)(jnp.vstack([x2] * 3))
+
+    assert max_sum_vmap.size == 3

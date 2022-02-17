@@ -32,6 +32,7 @@ def sat_cost(
         scalar cost
     """
     # Get the state trace and control effort from simulating
+    print("Simulation started...", end="")
     state_trace, total_effort = sat_simulate(
         design_params,
         exogenous_sample,
@@ -39,11 +40,14 @@ def sat_cost(
         dt,
         substeps,
     )
+    print("Done")
 
     # Get the robustness of the formula on this state trace
     t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
     signal = stl.SampledSignal(t, state_trace)
-    robustness = specification(signal).x[0]
+    print("Computing robustness...", end="")
+    robustness = specification(signal, smoothing=1e3, interpolate=False).x[0]
+    print("Done")
 
     # Compute cost based on combination of STL formula robustness and control effort
     cost = specification_weight * robustness + total_effort

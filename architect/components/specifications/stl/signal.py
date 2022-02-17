@@ -63,7 +63,10 @@ class SampledSignal(object):
         return SampledSignal(new_t, new_x)
 
     def max1d(
-        signal_1: "SampledSignal", signal_2: "SampledSignal", smoothing: float
+        signal_1: "SampledSignal",
+        signal_2: "SampledSignal",
+        smoothing: float,
+        interpolate: bool = True,
     ) -> "SampledSignal":
         """Take the elementwise smoothed maximum (log-sum-exp) of the two signals.
 
@@ -71,11 +74,16 @@ class SampledSignal(object):
         affine to resample appropriately before comparing the signal. The result is not
         guaranteed to have the same timestamps as either input signal.
 
+        WARNING: does not currently work with jax.vmap
+
         args:
             signal_1: First signal to compare. Must have n = 1
             signal_1: First signal to compare. Must have n = 1
             smoothing: the parameter determining how much to smoothly approximate the
             max of two signals. Uses the log-sum-exp approximation.
+            interpolate: if True, interpolate between timesteps to more accurately
+                handle intersections. True is not compatible with jax transformations
+                other than grad
         returns:
             a signal with n = 1 containing the smoothed maximum of the two signals
         """
@@ -89,41 +97,44 @@ class SampledSignal(object):
 
         # Re-sample the signals to the same timestamps
         merged_s = SampledSignal.stack(signal_1, signal_2)
+        new_t = merged_s.t
+        new_x = merged_s.x
 
-        # To make sure we don't introduce conservatism, we need to add a timestamped
-        # sample at the intersection between these two signals. First, find all
-        # intersections by looking at when signal_1.x - signal_2.x changes sign
-        diff = merged_s.x[:, 0] - merged_s.x[:, 1]
-        # This will contain the indices of zero crossings
-        zero_crossings = jnp.where(jnp.diff(jnp.signbit(diff)))[0]
+        if interpolate:
+            # To make sure we don't introduce conservatism, we need to add a timestamped
+            # sample at the intersection between these two signals. First, find all
+            # intersections by looking at when signal_1.x - signal_2.x changes sign
+            diff = merged_s.x[:, 0] - merged_s.x[:, 1]
+            # This will contain the indices of zero crossings
+            zero_crossings = jnp.where(jnp.diff(jnp.signbit(diff)))[0]
 
-        # At each intersection, we need to add a new timestamped sample for each signal
-        new_timestamps = []
-        for i in zero_crossings:
-            # Get start time and duration of the interval containing the intersection
-            intersection_t = merged_s.t[i]
-            dt = merged_s.t[i + 1] - intersection_t
+            # At each intersection, we need to add a new sample for each signal
+            new_timestamps = []
+            for i in zero_crossings:
+                # Get start time and length of the interval containing the intersection
+                intersection_t = merged_s.t[i]
+                dt = merged_s.t[i + 1] - intersection_t
 
-            # Get the slope of each signal in this domain.
-            x1_start = merged_s.x[i, 0]
-            x1_end = merged_s.x[i + 1, 0]
-            dx1_dt = (x1_end - x1_start) / dt
-            x2_start = merged_s.x[i, 1]
-            x2_end = merged_s.x[i + 1, 1]
-            dx2_dt = (x2_end - x2_start) / dt
+                # Get the slope of each signal in this domain.
+                x1_start = merged_s.x[i, 0]
+                x1_end = merged_s.x[i + 1, 0]
+                dx1_dt = (x1_end - x1_start) / dt
+                x2_start = merged_s.x[i, 1]
+                x2_end = merged_s.x[i + 1, 1]
+                dx2_dt = (x2_end - x2_start) / dt
 
-            # Use the slopes to compute the time of the intersection relative to the
-            # start time
-            dt_intersect = (x2_start - x1_start) / (dx1_dt - dx2_dt)
-            t_intersect = intersection_t + dt_intersect
-            new_timestamps.append(t_intersect)
+                # Use the slopes to compute the time of the intersection relative to the
+                # start time
+                dt_intersect = (x2_start - x1_start) / (dx1_dt - dx2_dt)
+                t_intersect = intersection_t + dt_intersect
+                new_timestamps.append(t_intersect)
 
-        # Add these new samples to both signals by intepolating
-        new_t = jnp.array(new_timestamps)
-        new_t = jnp.union1d(new_t, merged_s.t)
-        new_x = jnp.zeros((new_t.size, 2))
-        new_x = new_x.at[:, 0].set(jnp.interp(new_t, merged_s.t, merged_s.x[:, 0]))
-        new_x = new_x.at[:, 1].set(jnp.interp(new_t, merged_s.t, merged_s.x[:, 1]))
+            # Add these new samples to both signals by intepolating
+            added_t = jnp.array(new_timestamps)
+            new_t = jnp.union1d(new_t, added_t)
+            new_x = jnp.zeros((new_t.size, 2))
+            new_x = new_x.at[:, 0].set(jnp.interp(new_t, merged_s.t, merged_s.x[:, 0]))
+            new_x = new_x.at[:, 1].set(jnp.interp(new_t, merged_s.t, merged_s.x[:, 1]))
 
         # Take the elementwise smoothed maximum
         smoothed_max = 1 / smoothing * logsumexp(smoothing * new_x, axis=1)

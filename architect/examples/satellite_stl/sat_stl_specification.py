@@ -8,7 +8,7 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
 
     This specification captures the following requirements:
         - If the chaser speed is too high, do not approach the target
-        - Within some time, enter a ring around the target and stay there for a bit
+        - Eventually enter a ring around the target and stay there for a bit
         - After staying in that ring for a while, approach the target
     """
     ################################################
@@ -37,10 +37,8 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
     ################################################
     #   Define times for the mission
     ################################################
-    max_time_to_enter_waiting_zone = 50.0
-    min_time_in_waiting_zone = 10.0
-    max_time_in_waiting_zone = 20.0
-    max_time_to_reach_target = 100.0
+    min_time_in_waiting_zone = 5.0
+    max_time_in_waiting_zone = 10.0
 
     ################################################
     #   Construct the STL formula for the mission
@@ -49,10 +47,8 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
     # Maintain separation from the target until speed is low enough
     safety_constraint = stl.STLUntimedUntil(p_outside_min_radius, p_low_speed)
 
-    # Reach the target before the given time
-    eventually_reach_target = stl.STLTimedEventually(
-        p_docked, 0.0, max_time_to_reach_target
-    )
+    # Reach the target before the end of the trajectory
+    eventually_reach_target = stl.STLUntimedEventually(p_docked)
 
     # Reach the waiting zone before the given time and stay there for the specified
     # interval
@@ -61,10 +57,8 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
         min_time_in_waiting_zone,
         max_time_in_waiting_zone,
     )
-    eventually_reach_waiting_zone_and_wait = stl.STLTimedEventually(
-        stl.STLAnd([p_inside_max_radius, stay_inside_waiting_zone]),
-        0.0,
-        max_time_to_enter_waiting_zone,
+    eventually_reach_waiting_zone_and_wait = stl.STLUntimedEventually(
+        stl.STLAnd([p_inside_max_radius, stay_inside_waiting_zone])
     )
 
     # Combine to mission requirement

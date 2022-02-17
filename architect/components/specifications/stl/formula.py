@@ -23,7 +23,9 @@ class STLFormula(ABC):
         super(STLFormula, self).__init__()
 
     @abstractmethod
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -40,6 +42,8 @@ class STLFormula(ABC):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             single-element array of the robustness value for this formula and the given
             signal.
@@ -65,7 +69,9 @@ class STLPredicate(STLFormula):
         self.predicate = predicate
         self.lower_bound = lower_bound
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -86,6 +92,8 @@ class STLPredicate(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
@@ -111,7 +119,9 @@ class STLNegation(STLFormula):
 
         self.child = child
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -131,10 +141,12 @@ class STLNegation(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
-        return -self.child(s, smoothing)
+        return -self.child(s, smoothing, interpolate)
 
 
 class STLAnd(STLFormula):
@@ -154,7 +166,9 @@ class STLAnd(STLFormula):
 
         self.children = children
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -174,15 +188,17 @@ class STLAnd(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get children's robustness values
-        child1_r = self.children[0](s, smoothing)
-        child2_r = self.children[1](s, smoothing)
+        child1_r = self.children[0](s, smoothing, interpolate)
+        child2_r = self.children[1](s, smoothing, interpolate)
 
         # Use the trick where min(x, y) = -max(-x, -y)
-        r = -SampledSignal.max1d(-child1_r, -child2_r, smoothing)
+        r = -SampledSignal.max1d(-child1_r, -child2_r, smoothing, interpolate)
 
         return r
 
@@ -203,7 +219,9 @@ class STLOr(STLFormula):
 
         self.children = children
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -223,15 +241,17 @@ class STLOr(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get children's robustness values
-        child1_r = self.children[0](s, smoothing)
-        child2_r = self.children[1](s, smoothing)
+        child1_r = self.children[0](s, smoothing, interpolate)
+        child2_r = self.children[1](s, smoothing, interpolate)
 
         # Compute the maximum
-        r = SampledSignal.max1d(child1_r, child2_r, smoothing)
+        r = SampledSignal.max1d(child1_r, child2_r, smoothing, interpolate)
 
         return r
 
@@ -251,7 +271,9 @@ class STLImplies(STLFormula):
         self.premise = premise
         self.conclusion = conclusion
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -272,15 +294,17 @@ class STLImplies(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get robustness of premise and conclusion
-        r_premise = self.premise(s, smoothing)
-        r_conclusion = self.conclusion(s, smoothing)
+        r_premise = self.premise(s, smoothing, interpolate)
+        r_conclusion = self.conclusion(s, smoothing, interpolate)
 
         # Compute the smoothed maximum
-        r = SampledSignal.max1d(-r_premise, r_conclusion, smoothing)
+        r = SampledSignal.max1d(-r_premise, r_conclusion, smoothing, interpolate)
 
         return r
 
@@ -306,7 +330,9 @@ class STLUntimedEventually(STLFormula):
 
         self.child = child
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -326,11 +352,13 @@ class STLUntimedEventually(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get the robustness of the child formula
-        child_robustness = self.child(s, smoothing)
+        child_robustness = self.child(s, smoothing, interpolate)
 
         # Get the robustness trace as the accumulated maximum (backwards from the
         # end of the array). See Donze et al. "Efficient Robust Monitoring for STL"
@@ -366,7 +394,9 @@ class STLTimedEventually(STLFormula):
         self.t_start = t_start
         self.t_end = t_end
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -386,11 +416,13 @@ class STLTimedEventually(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get the robustness of the child formula
-        child_robustness = self.child(s, smoothing)
+        child_robustness = self.child(s, smoothing, interpolate)
 
         # We can't use the fancy moving-window maximum from Donze et al. if we want to
         # smooth the maximum (in which case all points in the interval contribute to
@@ -399,6 +431,7 @@ class STLTimedEventually(STLFormula):
         i_end = -1
         T = child_robustness.T
         r = jnp.zeros((T, 1))
+        interval_max_width = -1
         for i in range(T):
             t_i = child_robustness.t[i]
             # Increase the end index until it captures the interval
@@ -449,8 +482,15 @@ class STLTimedEventually(STLFormula):
                 # Get the value at the start point
                 start_pad += dt * start_slope
 
+            # Pad the end to constant width
+            if interval_max_width < interval.shape[0]:
+                interval_max_width = interval.shape[0]
+
             interval = jnp.pad(
-                interval, (1, 1), "constant", constant_values=(start_pad, end_pad)
+                interval,
+                [(1, 1 + interval_max_width - interval.shape[0]), (0, 0)],
+                "constant",
+                constant_values=(start_pad, end_pad),
             )
 
             if interval.size > 0:
@@ -481,7 +521,9 @@ class STLUntimedUntil(STLFormula):
         self.invariant = invariant
         self.release = release
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -502,12 +544,14 @@ class STLUntimedUntil(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Get the robustness of the child formulae
-        invariant_robustness = self.invariant(s, smoothing)
-        release_robustness = self.release(s, smoothing)
+        invariant_robustness = self.invariant(s, smoothing, interpolate)
+        release_robustness = self.release(s, smoothing, interpolate)
 
         # Do a forward pass to get the robustness of the invariant holding up to each
         # timestep (minimize by taking negative of max of negative)
@@ -520,7 +564,7 @@ class STLUntimedUntil(STLFormula):
 
         # Get the elementwise min with the release robustness
         r_min = -SampledSignal.max1d(
-            -release_robustness, -invariant_always_r, smoothing
+            -release_robustness, -invariant_always_r, smoothing, interpolate
         )
 
         # Get the robustness trace as the accumulated maximum (backwards from the
@@ -557,7 +601,9 @@ class STLTimedUntil(STLFormula):
             ]
         )
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -580,11 +626,13 @@ class STLTimedUntil(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
         # Just evaluate the child, which is a rewritten form of the timed until
-        return self.child(s, smoothing)
+        return self.child(s, smoothing, interpolate)
 
 
 class STLUntimedAlways(STLFormula):
@@ -603,7 +651,9 @@ class STLUntimedAlways(STLFormula):
 
         self.child = STLNegation(STLUntimedEventually(STLNegation(child)))
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -622,10 +672,12 @@ class STLUntimedAlways(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
-        return self.child(s, smoothing)
+        return self.child(s, smoothing, interpolate)
 
 
 class STLTimedAlways(STLFormula):
@@ -646,7 +698,9 @@ class STLTimedAlways(STLFormula):
 
         self.child = STLNegation(STLTimedEventually(STLNegation(child), t_start, t_end))
 
-    def __call__(self, s: SampledSignal, smoothing: float = 100.0) -> SampledSignal:
+    def __call__(
+        self, s: SampledSignal, smoothing: float = 100.0, interpolate: bool = True
+    ) -> SampledSignal:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is a SampledSignal of the same length as s where each
@@ -665,7 +719,9 @@ class STLTimedAlways(STLFormula):
             smoothing: the parameter determining how much to smooth non-continuous
                 elements of this formula (e.g. mins and maxes). Uses the log-sum-exp
                 smoothing for max and min.
+            interpolate: if True, interpolate to find intersections between signals.
+                Must be False to use jax.vmap
         returns:
             SampledSignal of the robustness trace for this formula and the given signal.
         """
-        return self.child(s, smoothing)
+        return self.child(s, smoothing, interpolate)
