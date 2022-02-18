@@ -22,7 +22,7 @@ nevergrad
 torch >= 1.9.0
 
 # Autodiff
-jax[cpu]
+jax[cpu] >= 0.3.0
 
 # Probabilistic programming
 pymc3

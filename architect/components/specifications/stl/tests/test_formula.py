@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt  # noqa
 
 
-from architect.components.specifications.stl.signal import SampledSignal
+from architect.components.specifications.stl.signal import stack
 from architect.components.specifications.stl.formula import (
     STLPredicate,
     STLNegation,
@@ -28,7 +28,7 @@ def make_test_predicate():
 def make_test_signal(dt=0.01):
     t = jnp.arange(0.0, 10.0, dt)
     x = jnp.sin(4 * t) * jnp.exp(-t / 2)
-    return SampledSignal(t, x)
+    return jnp.vstack((t, x))
 
 
 def test_STLPredicate():
@@ -42,15 +42,15 @@ def test_STLPredicate():
     r = p(signal)
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[1] == signal.shape[1]
+    assert r.shape[0] == 2
 
     # Check semantics
-    assert ((r.x > 0) == (jnp.abs(signal.x) < 0.1).reshape(-1, 1)).all()
+    assert ((r[1] > 0) == (jnp.abs(signal[1]) < 0.1)).all()
 
     # Also test on a multi-dimensional signal
-    x2 = jnp.vstack((signal.x.squeeze(), signal.x.squeeze(), signal.x.squeeze())).T
-    signal = SampledSignal(signal.t, x2)
+    x2 = jnp.vstack((signal[1].squeeze(), signal[1].squeeze(), signal[1].squeeze()))
+    signal = jnp.vstack((signal[0].reshape(1, -1), x2))
     mu = lambda x_t: -jnp.abs(x_t[0])
     p = STLPredicate(mu, -0.1)
 
@@ -58,11 +58,11 @@ def test_STLPredicate():
     r = p(signal)
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[1] == signal.shape[1]
+    assert r.shape[0] == 2
 
     # Check semantics
-    assert ((r.x > 0) == (jnp.abs(signal.x[:, 0]) < 0.1).reshape(-1, 1)).all()
+    assert ((r[1] > 0) == (jnp.abs(signal[1, :]) < 0.1)).all()
 
 
 def test_STLNegation():
@@ -79,11 +79,11 @@ def test_STLNegation():
     r = not_p(signal)
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[1] == signal.shape[1]
+    assert r.shape[0] == 2
 
     # Check semantics
-    assert ((r.x > 0) != (jnp.abs(signal.x) < 0.1).reshape(-1, 1)).all()
+    assert ((r[1] > 0) != (jnp.abs(signal[1]) < 0.1)).all()
 
 
 def test_STLAnd():
@@ -98,40 +98,42 @@ def test_STLAnd():
     p2 = STLPredicate(mu, 0.0)
 
     # And them together
-    p_and = STLAnd([p1, p2])
+    p_and = STLAnd(p1, p2)
 
     # Compute robustness
     r = p_and(signal, smoothing=1e6)
 
     # Check shapes
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[1] == signal.shape[1] * 4
+    assert r.shape[0] == 2
 
     # Check semantics
-    compare_mask = jnp.searchsorted(r.t, signal.t)
-    satisfied = jnp.logical_and(jnp.abs(signal.x) < 0.1, signal.x > 0.0)
+    compare_mask = jnp.searchsorted(r[0], signal[0])
+    satisfied = jnp.logical_and(jnp.abs(signal[1]) < 0.1, signal[1] > 0.0)
 
-    assert ((r.x[compare_mask] > 0) == satisfied).all()
+    assert ((r[1, compare_mask] > 0) == satisfied).all()
 
     # Test with coarser time samples
     t = jnp.arange(0.0, 1.0, 0.2)
     x1 = 1.0 - 2.0 * t
     x2 = -0.1 + t / 3.0
-    x = jnp.vstack((x1, x2)).T
-    signal = SampledSignal(t, x)
+    x = jnp.vstack((x1, x2))
+    signal = jnp.vstack((t.reshape(1, -1), x))
 
     # Make a formula for when both signals are positive
     mu_1 = lambda x_t: x_t[0]
     mu_2 = lambda x_t: x_t[1]
     p1 = STLPredicate(mu_1, 0.0)
     p2 = STLPredicate(mu_2, 0.0)
-    p_and = STLAnd([p1, p2])
+    p_and = STLAnd(p1, p2)
 
     # Get robustness
     r = p_and(signal, smoothing=1e6)
 
-    # The robustness trace should have added a point for the intersection between these
-    # lines
-    assert r.T == signal.T + 1
+    # The and operator runs max1d, which quadruples the length of the signal.
+    # Could be simpler, but needs to be constant in order to be compatible with
+    # vmap and grad
+    assert r.shape[1] == signal.shape[1] * 4
 
 
 def test_STLOr():
@@ -146,18 +148,18 @@ def test_STLOr():
     p2 = STLPredicate(mu, 0.0)
 
     # Or them together
-    p_or = STLOr([p1, p2])
+    p_or = STLOr(p1, p2)
 
     # Compute robustness
     r = p_or(signal)
 
     # Check shapes
-    assert r.x.shape == (r.T, 1)
+    assert r.shape == (2, r.shape[1])
 
     # Check semantics
-    compare_mask = jnp.searchsorted(r.t, signal.t)
-    satisfied = jnp.logical_or(jnp.abs(signal.x) < 0.1, signal.x > 0.0)
-    assert ((r.x[compare_mask] > 0) == satisfied).all()
+    compare_mask = jnp.searchsorted(r[0], signal[0])
+    satisfied = jnp.logical_or(jnp.abs(signal[1]) < 0.1, signal[1] > 0.0)
+    assert ((r[1, compare_mask] > 0) == satisfied).all()
 
 
 def test_STLImplies():
@@ -166,8 +168,8 @@ def test_STLImplies():
     t = jnp.arange(0.0, 0.1, 0.01)
     x1 = jnp.sin(4 * t)
     x2 = 2 * jnp.sin(2 * 4 * t)
-    x = jnp.vstack((x1, x2)).T
-    signal = SampledSignal(t, x)
+    x = jnp.vstack((x1, x2))
+    signal = jnp.vstack((t.reshape(1, -1), x))
 
     # Make two predicates to test if each dimension of the signal is positive
     mu_1 = lambda x_t: x_t[0]
@@ -183,15 +185,15 @@ def test_STLImplies():
     r = p(signal)
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[1] == signal.shape[1] * 4
+    assert r.shape[0] == 2
 
     # Check semantics. Make use of the fact that (A -> B) <-> ((not A) or B)
-    compare_mask = jnp.searchsorted(r.t, signal.t)
+    compare_mask = jnp.searchsorted(r[0], signal[0])
     satisfied = jnp.logical_or(
-        jnp.logical_not(signal.x[:, 0] > 0), signal.x[:, 1] > 0.0
+        jnp.logical_not(signal[1, :] > 0), signal[2, :] > 0.0
     )
-    assert ((r.x[compare_mask] > 0).squeeze() == satisfied).all()
+    assert ((r[1, compare_mask] > 0).squeeze() == satisfied).all()
 
 
 def test_STLUntimedEventually():
@@ -210,30 +212,30 @@ def test_STLUntimedEventually():
     r = p_eventually_large(signal, smoothing=1e6)
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[1] == signal.shape[1]
+    assert r.shape[0] == 2
 
     # Check semantics. This signal falls below 0.1 for the last time at t \approx 4.42
-    satisfied_mask = r.t <= 4.42
-    unsatisfied_mask = r.t >= 4.43
-    assert (r.x[satisfied_mask] > 0).all()
-    assert (r.x[unsatisfied_mask] < 0).all()
+    satisfied_mask = r[0] <= 4.42
+    unsatisfied_mask = r[0] >= 4.43
+    assert (r[1, satisfied_mask] > 0).all()
+    assert (r[1, unsatisfied_mask] < 0).all()
 
     # # Plot
-    # plt.plot(signal.t, signal.x)
-    # plt.plot(r.t, r.x)
-    # plt.plot(r.t, r.x > 0.0)
-    # plt.plot(signal.t, signal.t * 0, "k:")
-    # plt.plot(r.t, r.t * 0 + 0.1, "k:")
-    # plt.plot(r.t, r.t * 0 - 0.1, "k:")
+    # plt.plot(signal[0], signal[1])
+    # plt.plot(r[0], r[1])
+    # plt.plot(r[0], r[1] > 0.0)
+    # plt.plot(signal[0], signal[0] * 0, "k:")
+    # plt.plot(r[0], r[0] * 0 + 0.1, "k:")
+    # plt.plot(r[0], r[0] * 0 - 0.1, "k:")
     # plt.show()
 
 
 def test_STLTimedEventually():
     # Construct a test signal
-    t = jnp.arange(0, 5.0, 0.05)
+    t = jnp.arange(0, 5.0, 0.07)
     x = -2.5 + t
-    signal = SampledSignal(t, x)
+    signal = jnp.vstack((t, x))
 
     # Make a predicate to test if the absolute value of the signal is small
     mu = lambda x_t: -jnp.abs(x_t)
@@ -247,33 +249,32 @@ def test_STLTimedEventually():
     r = p_eventually_small(signal, smoothing=1e6)
 
     # # Plot
-    # plt.plot(signal.t, signal.x)
-    # plt.plot(r.t, r.x, marker="o")
-    # plt.plot(r.t, r.x > 0.0, marker="o")
-    # plt.plot(signal.t, signal.t * 0, "k:")
-    # plt.plot(r.t, r.t * 0 + 0.1, "k:")
-    # plt.plot(r.t, r.t * 0 - 0.1, "k:")
+    # plt.plot(signal[0], signal[1])
+    # plt.plot(r[0], r[1], marker="o")
+    # plt.plot(r[0], r[1] > 0.0, marker="o")
+    # plt.plot(signal[0], signal[0] * 0, "k:")
+    # plt.plot(r[0], r[0] * 0 + 0.1, "k:")
+    # plt.plot(r[0], r[0] * 0 - 0.1, "k:")
     # plt.show()
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[0] == 2
 
     # Check semantics. This should be satisied between 1.3 and 1.6 (since the signal is
     # small between 2.4 and 2.6)
-    satisfied_mask = jnp.logical_and(r.t > 1.3, r.t < 1.6)
-    unsatisfied_mask = jnp.logical_or(r.t < 1.3, r.t > 1.6)
-    assert (r.x[satisfied_mask] > 0).all()
-    assert (r.x[unsatisfied_mask] < 0).all()
+    satisfied_mask = jnp.logical_and(r[0] > 1.3, r[0] < 1.6)
+    unsatisfied_mask = jnp.logical_or(r[0] < 1.3, r[0] > 1.6)
+    assert (r[1, satisfied_mask] > 0).all()
+    assert (r[1, unsatisfied_mask] < 0).all()
 
 
 def test_STLUntimedUntil():
     # Construct test signals
     signal0 = make_test_signal(dt=0.5)
-    x1 = 1.1 - signal0.t / 5
-    x2 = -1.0 + signal0.t / 5
-    x = jnp.vstack((x1, x2)).T
-    signal = SampledSignal(signal0.t, x)
+    x1 = 1.1 - signal0[0] / 5
+    x2 = -1.0 + signal0[0] / 5
+    x = jnp.vstack((x1, x2))
+    signal = jnp.vstack((signal0[0], x))
 
     # Make a predicate to test if a signal is positive
     mu1 = lambda x_t: x_t[0]
@@ -288,23 +289,22 @@ def test_STLUntimedUntil():
     r = p_until(signal, smoothing=1e6)
 
     # Check shapes
-    assert r.T == signal.T + 1  # 1 intersection point got added
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[0] == 2
 
     # Check semantics. Satisfied until t = 5.5
-    satisfied_mask = r.t <= 5.49
-    unsatisfied_mask = r.t > 5.5
-    assert (r.x[satisfied_mask] > 0).all()
-    assert (r.x[unsatisfied_mask] < 0).all()
+    satisfied_mask = r[0] <= 5.49
+    unsatisfied_mask = r[0] > 5.5
+    assert (r[1, satisfied_mask] > 0).all()
+    assert (r[1, unsatisfied_mask] < 0).all()
 
 
 def test_STLTimedUntil():
     # Construct test signals
     signal0 = make_test_signal(dt=0.1)
-    x1 = 1.1 - signal0.t / 5
-    x2 = -1.0 + signal0.t / 5
-    x = jnp.vstack((x1, x2)).T
-    signal = SampledSignal(signal0.t, x)
+    x1 = 1.1 - signal0[0] / 5
+    x2 = -1.0 + signal0[0] / 5
+    x = jnp.vstack((x1, x2))
+    signal = jnp.vstack((signal0[0].reshape(1, -1), x))
 
     # Make a predicate to test if a signal is positive
     mu1 = lambda x_t: x_t[0]
@@ -327,14 +327,13 @@ def test_STLTimedUntil():
     # plt.show()
 
     # Check shapes
-    assert r.T == signal.T + 2  # 2 intersection points get added
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[0] == 2
 
     # Check semantics. Satisfied between t = 3.0 and t = 4.5
-    satisfied_mask = jnp.logical_and(r.t > 3.0, r.t < 4.5)
-    unsatisfied_mask = jnp.logical_or(r.t < 3.0, r.t > 4.5)
-    assert (r.x[satisfied_mask] > 0).all()
-    assert (r.x[unsatisfied_mask] < 0).all()
+    satisfied_mask = jnp.logical_and(r[0] > 3.0, r[0] < 4.5)
+    unsatisfied_mask = jnp.logical_or(r[0] < 3.0, r[0] > 4.5)
+    assert (r[1, satisfied_mask] > 0).all()
+    assert (r[1, unsatisfied_mask] < 0).all()
 
 
 def test_STLUntimedAlways():
@@ -353,14 +352,13 @@ def test_STLUntimedAlways():
     r = p_always_small(signal, smoothing=1e6)
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[0] == 2
 
     # Check semantics. This signal falls below 0.1 for the last time at t \approx 4.42
-    satisfied_mask = r.t >= 4.43
-    unsatisfied_mask = r.t <= 4.42
-    assert (r.x[satisfied_mask] > 0).all()
-    assert (r.x[unsatisfied_mask] < 0).all()
+    satisfied_mask = r[0] >= 4.43
+    unsatisfied_mask = r[0] <= 4.42
+    assert (r[1, satisfied_mask] > 0).all()
+    assert (r[1, unsatisfied_mask] < 0).all()
 
     # # Plot
     # plt.plot(signal.t, signal.x)
@@ -376,7 +374,7 @@ def test_STLTimedAlways():
     # Construct a test signal
     t = jnp.arange(0, 5.0, 0.01)
     x = -2.5 + t
-    signal = SampledSignal(t, x)
+    signal = jnp.vstack((t, x))
 
     # Make a predicate to test if the absolute value of the signal is small
     mu = lambda x_t: -jnp.abs(x_t)
@@ -390,14 +388,13 @@ def test_STLTimedAlways():
     r = p_always_small(signal, smoothing=1e6)
 
     # Check shapes
-    assert r.T == signal.T
-    assert r.x.shape == (r.T, 1)
+    assert r.shape[0] == 2
 
     # Check semantics. This signal satisfies from 1.3 to 1.6 s
-    satisfied_mask = jnp.logical_and(r.t > 1.31, r.t < 1.59)
-    unsatisfied_mask = jnp.logical_or(r.t < 1.3, r.t > 1.6)
-    assert (r.x[satisfied_mask] > 0).all()
-    assert (r.x[unsatisfied_mask] < 0).all()
+    satisfied_mask = jnp.logical_and(r[0] > 1.31, r[0] < 1.59)
+    unsatisfied_mask = jnp.logical_or(r[0] < 1.3, r[0] > 1.6)
+    assert (r[1, satisfied_mask] > 0).all()
+    assert (r[1, unsatisfied_mask] < 0).all()
 
     # # Plot
     # plt.plot(signal.t, signal.x)

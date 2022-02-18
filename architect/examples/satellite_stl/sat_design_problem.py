@@ -1,3 +1,5 @@
+import jax
+
 from architect.design import DesignProblem
 from .sat_cost import sat_cost
 from .sat_design_parameters import SatDesignParameters
@@ -31,13 +33,15 @@ def make_sat_design_problem(
 
     # Make the STL specification
     stl_specification = make_sat_rendezvous_specification()
+    stl_specification_f = lambda trace: stl_specification(trace, smoothing=1e3)
+    stl_specification_jit = jax.jit(stl_specification_f)
 
     # Wrap the cost function
     def cost_fn(design_params, exogenous_sample):
         return sat_cost(
             design_params,
             exogenous_sample,
-            stl_specification,
+            stl_specification_jit,
             specification_weight,
             time_steps,
             dt,

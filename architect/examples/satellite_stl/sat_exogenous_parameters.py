@@ -38,7 +38,7 @@ class SatExogenousParameters(ExogenousParameters):
 
         # Initial states are sampled from a normal distribution with mean position
         # [15, 15, 0] and zero velocity
-        mean_state = jnp.zeros((6,)).at[:2].add(15.0)
+        mean_state = jnp.zeros((6,)).at[:2].add(10.0)
 
         # Use standard deviation of 2
         return mean_state + 2 * jax.random.normal(prng_key, shape=shape)

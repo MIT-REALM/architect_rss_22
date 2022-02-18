@@ -70,8 +70,8 @@ def sat_simulate(
 if __name__ == "__main__":
     # Test the simulation
     t_sim = 60.0
-    dt = 0.1
-    substeps = 5
+    dt = 0.2
+    substeps = 10
     T = int(t_sim // dt)
     start_state = jnp.zeros((6,)) + 1.0
     K = jnp.array(

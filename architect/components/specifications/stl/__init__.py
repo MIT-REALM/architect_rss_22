@@ -12,10 +12,8 @@ from .formula import (
     STLUntimedAlways,
     STLTimedAlways,
 )
-from .signal import SampledSignal
 
 __all__ = [
-    "SampledSignal",
     "STLFormula",
     "STLPredicate",
     "STLNegation",
