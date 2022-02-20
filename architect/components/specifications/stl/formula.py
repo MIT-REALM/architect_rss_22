@@ -547,9 +547,7 @@ class STLTimedUntil(STLFormula):
         )
 
     @partial(jax.jit, static_argnames=["self"])
-    def __call__(
-        self, s: jnp.ndarray, smoothing: float = 100.0
-    ) -> jnp.ndarray:
+    def __call__(self, s: jnp.ndarray, smoothing: float = 100.0) -> jnp.ndarray:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is an array of the same length as s where each
@@ -640,9 +638,7 @@ class STLTimedAlways(STLFormula):
         self.child = STLNegation(STLTimedEventually(STLNegation(child), t_start, t_end))
 
     @partial(jax.jit, static_argnames=["self"])
-    def __call__(
-        self, s: jnp.ndarray, smoothing: float = 100.0
-    ) -> jnp.ndarray:
+    def __call__(self, s: jnp.ndarray, smoothing: float = 100.0) -> jnp.ndarray:
         """Evaluates this formula on the given signal, returning its robustness trace.
 
         The robustness trace is an array of the same length as s where each

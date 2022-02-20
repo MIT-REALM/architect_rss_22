@@ -33,7 +33,7 @@ class SatDesignParameters(DesignParameters):
                 [0.0, 0.0, 100.0, 0.0, 0.0, 100.0],
             ]
         )
-        self._values = self._values.at[:n_controls * n_states].set(gains.reshape(-1))
+        self._values = self._values.at[: n_controls * n_states].set(gains.reshape(-1))
 
     @property
     def bounds(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:

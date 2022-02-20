@@ -79,7 +79,10 @@ def run_optimizer():
     # Optimize!
     prng_key, subkey = jax.random.split(prng_key)
     success, msg, dp_opt, cost_mean, cost_var = vr_opt.optimize(
-        subkey, disp=True, maxiter=1000, jit=True,
+        subkey,
+        disp=True,
+        maxiter=1000,
+        jit=True,
     )
     print("==================================")
     print(f"Success? {success}! Message: {msg}")

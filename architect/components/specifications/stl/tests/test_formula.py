@@ -189,9 +189,7 @@ def test_STLImplies():
 
     # Check semantics. Make use of the fact that (A -> B) <-> ((not A) or B)
     compare_mask = jnp.searchsorted(r[0], signal[0])
-    satisfied = jnp.logical_or(
-        jnp.logical_not(signal[1, :] > 0), signal[2, :] > 0.0
-    )
+    satisfied = jnp.logical_or(jnp.logical_not(signal[1, :] > 0), signal[2, :] > 0.0)
     assert ((r[1, compare_mask] > 0).squeeze() == satisfied).all()
 
 
