@@ -1,7 +1,7 @@
 """
 Optimizes a design to achieve minimal cost, regularized by the variance of the cost
 """
-from typing import Callable, Tuple
+from typing import Callable, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -47,7 +47,7 @@ class VarianceRegularizedOptimizerAD(object):
         self.sample_size = sample_size
 
     def compile_cost_fn(
-        self, prng_key: PRNGKeyArray
+        self, prng_key: PRNGKeyArray, jit: bool = False
     ) -> Tuple[
         Callable[[np.ndarray], Tuple[float, np.ndarray]],
         Callable[[jnp.ndarray], Tuple[jnp.ndarray, jnp.ndarray]],
@@ -61,6 +61,7 @@ class VarianceRegularizedOptimizerAD(object):
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
+            jit: if True, jit the cost and gradient function
         returns: two functions in a Tuple
             - a function that takes an array of values for the design parameters and
               returns a tuple of variance-regularized cost and the gradient of that
@@ -108,6 +109,9 @@ class VarianceRegularizedOptimizerAD(object):
         # Automatically differentiate
         vr_cost_and_grad = jax.value_and_grad(variance_regularized_cost)
 
+        if jit:
+            vr_cost_and_grad = jax.jit(vr_cost_and_grad)
+
         # Wrap in numpy access
         def vr_cost_and_grad_np(design_params_np: np.ndarray):
             vr_cost, grad = vr_cost_and_grad(jnp.array(design_params_np))
@@ -118,7 +122,11 @@ class VarianceRegularizedOptimizerAD(object):
         return vr_cost_and_grad_np, cost_mean_and_variance
 
     def optimize(
-        self, prng_key: PRNGKeyArray, disp: bool = False
+        self,
+        prng_key: PRNGKeyArray,
+        disp: bool = False,
+        maxiter: Optional[int] = None,
+        jit: bool = False,
     ) -> Tuple[bool, str, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Optimize the design problem, starting with the initial values stored in
         self.design_problem.design_params.
@@ -126,6 +134,9 @@ class VarianceRegularizedOptimizerAD(object):
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
             disp: if True, display optimization progress
+            maxiter: maximum number of optimization iterations to perform. Defaults to
+                no limit.
+            jit: if True, JIT the cost and gradient function.
         returns:
             a boolean that is true if the optimization suceeded,
             a string containing the termination message from the optimization engine,
@@ -134,7 +145,7 @@ class VarianceRegularizedOptimizerAD(object):
             a single-element JAX array of the cost variance at the optimal parameters
         """
         # Compile the cost function
-        f, cost_mean_and_variance = self.compile_cost_fn(prng_key)
+        f, cost_mean_and_variance = self.compile_cost_fn(prng_key, jit=jit)
 
         # Get the bounds on the design parameters
         bounds = self.design_problem.design_params.bounds
@@ -153,6 +164,10 @@ class VarianceRegularizedOptimizerAD(object):
         initial_guess = self.design_problem.design_params.get_values_np()
 
         # Minimize! Use the scipy interface
+        opts = {"disp": disp}
+        if maxiter is not None:
+            opts["maxiter"] = maxiter
+
         result = sciopt.minimize(
             f,
             initial_guess,
@@ -160,7 +175,7 @@ class VarianceRegularizedOptimizerAD(object):
             jac=True,  # f returns both cost and gradient in a tuple
             bounds=bounds,
             constraints=constraints,
-            options={"disp": disp},
+            options=opts,
         )
 
         # Extract the solution and get the cost and variance at that point

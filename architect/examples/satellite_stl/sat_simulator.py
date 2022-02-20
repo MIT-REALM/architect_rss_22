@@ -1,7 +1,9 @@
 """Define a simulator for the satellite"""
-from typing import Tuple
+from functools import partial
 import time
+from typing import Tuple
 
+import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
@@ -10,6 +12,7 @@ from architect.components.dynamics.linear_satellite import (
 )
 
 
+@partial(jax.jit, static_argnames=["substeps"])
 def sat_simulate(
     design_params: jnp.ndarray,
     exogenous_sample: jnp.ndarray,
@@ -34,44 +37,61 @@ def sat_simulate(
     returns:
         a tuple of
             - the state trace in a (time_steps, 6) array
-            - the total expended actuation effort (mean-squared)
+            - the total expended actuation effort (sum of 1-norm scaled by dt)
     """
-    # Set up an array to store the results of the simulation
-    state_trace = jnp.zeros((time_steps, 6)).at[0].set(exogenous_sample)
-    total_effort = jnp.zeros(())
-
-    # Reshape the design params to make them more easily accessible
+    # To enable easier JIT, this simulation will be implemented as a scan.
+    # This requires creating an array with the reference states and controls
+    # that we will scan over
     K = design_params[: 6 * 3].reshape(3, 6)
-    design_params = design_params[6 * 3 :].reshape(-1, 3 + 6)
-    planned_inputs = design_params[:, :3]
-    planned_states = design_params[:, 3:]
+    planned_trajectory = design_params[6 * 3 :].reshape(-1, 3 + 6)
 
-    # Conduct the simulation with no actuation noise (for now)
+    # No noise for now
     actuation_noise = jnp.zeros(6)
-    for i in range(1, time_steps):
-        # Get the planned input and state
-        planned_input = planned_inputs[i - 1]
-        planned_state = planned_states[i - 1]
+
+    # Now create a function that executes a single step of the simulation
+    @partial(jax.jit, static_argnames=["substeps"])
+    def step(current_state, current_plan):
+        """Perform a single simulation step
+
+        args:
+            current_state: (6,) array of satellite states
+            current_plan: (9,) array of 3 planned inputs and 6 planned states
+        returns:
+            - (6,) array of next state
+            - (9,) array of next state and control input used to get there
+        """
+        # Get the state and control from the plan
+        planned_input = current_plan[:3]
+        planned_state = current_plan[3:]
 
         # Compute the control from feedback and planned
-        current_state = state_trace[i - 1]
         control_input = planned_input - K @ (current_state - planned_state)
-        total_effort = total_effort + (control_input ** 2).sum()
 
-        state_trace = state_trace.at[i].set(
-            linear_satellite_next_state_substeps(
-                current_state, control_input, actuation_noise, dt, substeps
-            )
+        # Update the state
+        next_state = linear_satellite_next_state_substeps(
+            current_state, control_input, actuation_noise, dt, substeps
         )
 
-    return state_trace, total_effort / time_steps
+        return next_state, jnp.concatenate((next_state, control_input))
+
+    # Simulate by scanning over the plan
+    initial_state = exogenous_sample
+    final_state, state_control_trace = jax.lax.scan(
+        step, initial_state, planned_trajectory
+    )
+
+    # Get the state trace and total control effort
+    state_trace = state_control_trace[:, :6]
+    total_effort = jnp.linalg.norm(state_control_trace[:, 6:], ord=1, axis=-1).sum()
+
+    return state_trace, dt * total_effort
 
 
 if __name__ == "__main__":
     # Test the simulation
-    t_sim = 60.0
-    dt = 0.2
-    substeps = 10
+    t_sim = 240.0
+    dt = 0.3
+    substeps = 30
     T = int(t_sim // dt)
     start_state = jnp.zeros((6,)) + 1.0
     K = jnp.array(
@@ -87,7 +107,7 @@ if __name__ == "__main__":
     # Burn-in once to activate JIT (if using)
     state_trace, effort = sat_simulate(design_params, start_state, T, dt, substeps)
 
-    N_tests = 2
+    N_tests = 5
     sim_time = 0.0
     for _ in range(N_tests):
         start = time.perf_counter()

@@ -1,3 +1,6 @@
+from functools import partial
+
+import jax
 import jax.numpy as jnp
 
 import architect.components.specifications.stl as stl
@@ -5,6 +8,7 @@ import architect.components.specifications.stl as stl
 from .sat_simulator import sat_simulate
 
 
+@partial(jax.jit, static_argnames=["specification", "substeps"])
 def sat_cost(
     design_params: jnp.ndarray,
     exogenous_sample: jnp.ndarray,
@@ -32,7 +36,6 @@ def sat_cost(
         scalar cost
     """
     # Get the state trace and control effort from simulating
-    print("Simulation started...", end="")
     state_trace, total_effort = sat_simulate(
         design_params,
         exogenous_sample,
@@ -40,14 +43,11 @@ def sat_cost(
         dt,
         substeps,
     )
-    print("Done")
 
     # Get the robustness of the formula on this state trace
     t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0]).reshape(1, -1)
     signal = jnp.vstack((t, state_trace.T))
-    print("Computing robustness...", end="")
     robustness = specification(signal)[1, 0]
-    print("Done")
 
     # Compute cost based on combination of STL formula robustness and control effort
     cost = -robustness + total_effort / specification_weight

@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from architect.optimization import (
     VarianceRegularizedOptimizerAD,
 )
-import architect.components.specifications.stl as stl
 from architect.examples.satellite_stl.sat_design_problem import (
     make_sat_design_problem,
 )
@@ -22,11 +21,11 @@ def run_optimizer():
     prng_key = jax.random.PRNGKey(0)
 
     # Make the design problem
-    t_sim = 60.0
-    dt = 0.2
-    substeps = 10
+    t_sim = 200.0
+    dt = 0.3
+    substeps = 15
     time_steps = int(t_sim // dt)
-    specification_weight = 1e5
+    specification_weight = 1e4
     prng_key, subkey = jax.random.split(prng_key)
     sat_design_problem = make_sat_design_problem(
         specification_weight, time_steps, dt, substeps
@@ -79,7 +78,9 @@ def run_optimizer():
 
     # Optimize!
     prng_key, subkey = jax.random.split(prng_key)
-    success, msg, dp_opt, cost_mean, cost_var = vr_opt.optimize(subkey, disp=True)
+    success, msg, dp_opt, cost_mean, cost_var = vr_opt.optimize(
+        subkey, disp=True, maxiter=1000, jit=True,
+    )
     print("==================================")
     print(f"Success? {success}! Message: {msg}")
     print("----------------------------------")
@@ -94,8 +95,8 @@ def run_optimizer():
 
     # Get the robustness of this solution
     stl_specification = make_sat_rendezvous_specification()
-    t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0]).reshape(1, -1)
-    signal = jnp.vstack((t, state_trace.T))
+    t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
+    signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
     robustness = stl_specification(signal)
 
     # Plot the results

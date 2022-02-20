@@ -2,7 +2,6 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt  # noqa
 
 
-from architect.components.specifications.stl.signal import stack
 from architect.components.specifications.stl.formula import (
     STLPredicate,
     STLNegation,
