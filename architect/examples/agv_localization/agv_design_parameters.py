@@ -21,7 +21,7 @@ class AGVDesignParameters(DesignParameters):
         super(AGVDesignParameters, self).__init__(6, names)
 
     @property
-    def bounds(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
+    def bounds_list(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
         """Returns the bounds on the design parameters as a list. Each element
         of the list should be None (indicates no bound) or a tuple of (lower, upper)
         bounds.

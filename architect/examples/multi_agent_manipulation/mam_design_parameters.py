@@ -50,7 +50,7 @@ class MAMDesignParameters(DesignParameters):
         self._values = self._values.at[:2].set(jnp.array([10.0, 10.0]))
 
     @property
-    def bounds(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
+    def bounds_list(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
         """Returns the bounds on the design parameters as a list. Each element
         of the list should be None (indicates no bound) or a tuple of (lower, upper)
         bounds.

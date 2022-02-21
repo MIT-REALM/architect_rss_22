@@ -136,7 +136,7 @@ class VarianceRegularizedOptimizerCMA(object):
         f, cost_mean_and_variance = self.compile_cost_fn(prng_key)
 
         # Get the bounds on the design parameters
-        bounds = self.design_problem.design_params.bounds
+        bounds = self.design_problem.design_params.bounds_list
         # We need to place bounds on all variables to match the nevergrad syntax.
         # If a variable is unbounded, bound it to +/- 50 arbitrarily
         lower_bounds = np.zeros(self.design_problem.design_params.size)

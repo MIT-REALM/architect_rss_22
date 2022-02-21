@@ -1,6 +1,6 @@
 import jax
 
-from architect.design import DesignProblem
+from architect.design import BoundedDesignProblem
 from .sat_cost import sat_cost
 from .sat_design_parameters import SatDesignParameters
 from .sat_exogenous_parameters import SatExogenousParameters
@@ -13,7 +13,7 @@ def make_sat_design_problem(
     time_steps: int,
     dt: float,
     substeps: int,
-) -> DesignProblem:
+) -> BoundedDesignProblem:
     """Make an instance of the multi-agent manipulation design problem.
     Uses two turtlebots.
 
@@ -23,7 +23,7 @@ def make_sat_design_problem(
         dt: the duration of each time step
         substeps: how many smaller updates to break this interval into
     returns:
-        a DesignProblem
+        a BoundedDesignProblem
     """
     # Define the exogenous parameters
     ep = SatExogenousParameters()
@@ -59,5 +59,5 @@ def make_sat_design_problem(
         )
 
     # Make a design problem instance
-    sat_design_problem = DesignProblem(dp, ep, cost_fn, simulator)
+    sat_design_problem = BoundedDesignProblem(dp, ep, cost_fn, simulator)
     return sat_design_problem

@@ -46,7 +46,7 @@ class DesignParameters(object):
         # Initialize parameter vector (try to respect bounds, but no guarantees that
         # we will respect constraints)
         self._values = jnp.zeros(self.size)
-        for idx, bound in enumerate(self.bounds):
+        for idx, bound in enumerate(self.bounds_list):
             lb, ub = bound
             if lb is not None and ub is not None:
                 center = (lb + ub) / 2.0
@@ -76,7 +76,7 @@ class DesignParameters(object):
         return np.array(self._values)
 
     @property
-    def bounds(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
+    def bounds_list(self) -> Sequence[Tuple[Optional[float], Optional[float]]]:
         """Returns the bounds on the design parameters as a list. Each element
         of the list should be None (indicates no bound) or a tuple of (lower, upper)
         bounds.

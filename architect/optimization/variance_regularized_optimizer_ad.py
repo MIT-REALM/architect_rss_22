@@ -1,7 +1,7 @@
 """
 Optimizes a design to achieve minimal cost, regularized by the variance of the cost
 """
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -148,7 +148,7 @@ class VarianceRegularizedOptimizerAD(object):
         f, cost_mean_and_variance = self.compile_cost_fn(prng_key, jit=jit)
 
         # Get the bounds on the design parameters
-        bounds = self.design_problem.design_params.bounds
+        bounds = self.design_problem.design_params.bounds_list
 
         # Get the constraints
         constraints = self.design_problem.design_params.constraints
@@ -164,7 +164,7 @@ class VarianceRegularizedOptimizerAD(object):
         initial_guess = self.design_problem.design_params.get_values_np()
 
         # Minimize! Use the scipy interface
-        opts = {"disp": disp}
+        opts: Dict[str, Any] = {"disp": disp}
         if maxiter is not None:
             opts["maxiter"] = maxiter
 

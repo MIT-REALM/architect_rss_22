@@ -76,6 +76,7 @@ def sat_simulate(
 
     # Simulate by scanning over the plan
     initial_state = exogenous_sample
+    state_control_trace: jnp.ndarray
     final_state, state_control_trace = jax.lax.scan(
         step, initial_state, planned_trajectory
     )
