@@ -144,15 +144,19 @@ class STLNegation(STLFormula):
 class STLAnd(STLFormula):
     """Represents an STL conjunction"""
 
-    def __init__(self, child_1: STLFormula, child_2):
+    def __init__(
+        self, child_1: STLFormula, child_2: STLFormula, interpolate: bool = True
+    ):
         """Initialize an STL formula for a conjunction
 
         args:
             child_1, child_2: the two formulae to and together.
+            interpolate: if True, will look for intersections between child traces
         """
         super(STLAnd, self).__init__()
 
         self.children = [child_1, child_2]
+        self.interpolate = interpolate
 
     @partial(jax.jit, static_argnames=["self"])
     def __call__(self, s: jnp.ndarray, smoothing: float = 100.0) -> jnp.ndarray:
@@ -184,7 +188,12 @@ class STLAnd(STLFormula):
 
         # Use the trick where min(x, y) = -max(-x, -y)
         r = (
-            max1d(child1_r.at[1:].multiply(-1), child2_r.at[1:].multiply(-1), smoothing)
+            max1d(
+                child1_r.at[1:].multiply(-1),
+                child2_r.at[1:].multiply(-1),
+                smoothing,
+                self.interpolate,
+            )
             .at[1:]
             .multiply(-1)
         )
@@ -195,15 +204,19 @@ class STLAnd(STLFormula):
 class STLOr(STLFormula):
     """Represents an STL disjunction"""
 
-    def __init__(self, child_1: STLFormula, child_2):
+    def __init__(
+        self, child_1: STLFormula, child_2: STLFormula, interpolate: bool = True
+    ):
         """Initialize an STL formula for a disjunction
 
         args:
             child_1, child_2: the two formulae to and together.
+            interpolate: if True, will look for intersections between child traces
         """
         super(STLOr, self).__init__()
 
         self.children = [child_1, child_2]
+        self.interpolate = interpolate
 
     @partial(jax.jit, static_argnames=["self"])
     def __call__(self, s: jnp.ndarray, smoothing: float = 100.0) -> jnp.ndarray:
@@ -234,7 +247,7 @@ class STLOr(STLFormula):
         child2_r = self.children[1](s, smoothing)
 
         # Compute the maximum
-        r = max1d(child1_r, child2_r, smoothing)
+        r = max1d(child1_r, child2_r, smoothing, self.interpolate)
 
         return r
 
@@ -242,17 +255,21 @@ class STLOr(STLFormula):
 class STLImplies(STLFormula):
     """Represents an STL implication"""
 
-    def __init__(self, premise: STLFormula, conclusion: STLFormula):
+    def __init__(
+        self, premise: STLFormula, conclusion: STLFormula, interpolate: bool = True
+    ):
         """Initialize an STL formula for a implication
 
         args:
             premise: an STL formula
             conclusion: an STL formula
+            interpolate: if True, will look for intersections between child traces
         """
         super(STLImplies, self).__init__()
 
         self.premise = premise
         self.conclusion = conclusion
+        self.interpolate = interpolate
 
     @partial(jax.jit, static_argnames=["self"])
     def __call__(self, s: jnp.ndarray, smoothing: float = 100.0) -> jnp.ndarray:
@@ -284,7 +301,9 @@ class STLImplies(STLFormula):
         r_conclusion = self.conclusion(s, smoothing)
 
         # Compute the smoothed maximum
-        r = max1d(r_premise.at[1:].multiply(-1), r_conclusion, smoothing)
+        r = max1d(
+            r_premise.at[1:].multiply(-1), r_conclusion, smoothing, self.interpolate
+        )
 
         return r
 
@@ -451,7 +470,9 @@ class STLTimedEventually(STLFormula):
 class STLUntimedUntil(STLFormula):
     """Represents an STL temporal operator for until without a time bound"""
 
-    def __init__(self, invariant: STLFormula, release: STLFormula):
+    def __init__(
+        self, invariant: STLFormula, release: STLFormula, interpolate: bool = True
+    ):
         """Initialize an STL formula for an untimed until. This formula is satisfied
         for a given signal if invariant is satisfied at all times until release is
         satisfied
@@ -459,11 +480,13 @@ class STLUntimedUntil(STLFormula):
         args:
             invariant: an STL formula that should hold until release holds
             release: an STL formula that should hold eventually
+            interpolate: if True, will look for intersections between child traces
         """
         super(STLUntimedUntil, self).__init__()
 
         self.invariant = invariant
         self.release = release
+        self.interpolate = interpolate
 
     @partial(jax.jit, static_argnames=["self"])
     def __call__(self, s: jnp.ndarray, smoothing: float = 100.0) -> jnp.ndarray:
@@ -509,6 +532,7 @@ class STLUntimedUntil(STLFormula):
                 release_robustness.at[1:].multiply(-1),
                 invariant_always_r.at[1:].multiply(-1),
                 smoothing,
+                self.interpolate,
             )
             .at[1:]
             .multiply(-1)
@@ -525,7 +549,12 @@ class STLTimedUntil(STLFormula):
     """Represents an STL temporal operator for until with a time bound"""
 
     def __init__(
-        self, invariant: STLFormula, release: STLFormula, t_start: float, t_end: float
+        self,
+        invariant: STLFormula,
+        release: STLFormula,
+        t_start: float,
+        t_end: float,
+        interpolate: bool = True,
     ):
         """Initialize an STL formula for a timed until. This formula is satisfied
         for a given signal if invariant is satisfied at all times until release is
@@ -536,6 +565,7 @@ class STLTimedUntil(STLFormula):
             release: an STL formula that should hold eventually
             t_start: start point (inclusive) of interval
             t_end: end point (inclusive) of interval
+            interpolate: if True, will look for intersections between child traces
         """
         super(STLTimedUntil, self).__init__()
 
@@ -543,7 +573,10 @@ class STLTimedUntil(STLFormula):
         # (eventually_[a, b] y) and (always_[0, a] x U y)
         self.child = STLAnd(
             STLTimedEventually(release, t_start, t_end),
-            STLTimedAlways(STLUntimedUntil(invariant, release), 0, t_start),
+            STLTimedAlways(
+                STLUntimedUntil(invariant, release, interpolate), 0, t_start
+            ),
+            interpolate,
         )
 
     @partial(jax.jit, static_argnames=["self"])

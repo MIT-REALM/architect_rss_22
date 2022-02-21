@@ -15,6 +15,11 @@ from architect.examples.satellite_stl.sat_stl_specification import (
     make_sat_rendezvous_specification,
 )
 
+from jax.config import config
+
+
+config.update("jax_debug_nans", True)
+
 
 def run_optimizer():
     """Run design optimization and plot the results"""
@@ -22,13 +27,12 @@ def run_optimizer():
 
     # Make the design problem
     t_sim = 200.0
-    dt = 0.3
-    substeps = 15
+    dt = 2.0
     time_steps = int(t_sim // dt)
     specification_weight = 1e4
     prng_key, subkey = jax.random.split(prng_key)
     sat_design_problem = make_sat_design_problem(
-        specification_weight, time_steps, dt, substeps
+        specification_weight, time_steps, dt
     )
 
     # Run a simulation for plotting the optimal solution
@@ -38,13 +42,13 @@ def run_optimizer():
     state_trace, total_effort = sat_design_problem.simulator(dp_init, exogenous_sample)
     print("Done.", flush=True)
 
-    # Get the robustness of this solution
-    stl_specification = make_sat_rendezvous_specification()
-    t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
-    signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
-    print("Computing initial guess robustness... ", end="", flush=True)
-    robustness = stl_specification(signal)
-    print("Done.", flush=True)
+    # # Get the robustness of this solution
+    # stl_specification = make_sat_rendezvous_specification()
+    # t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
+    # signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
+    # print("Computing initial guess robustness... ", end="", flush=True)
+    # robustness = stl_specification(signal)
+    # print("Done.", flush=True)
 
     # # Plot the results
     # fig = plt.figure(figsize=plt.figaspect(0.5))
@@ -74,8 +78,8 @@ def run_optimizer():
     # plt.show()
 
     # Create the optimizer
-    N_dp = 64
-    N_ep = 64
+    N_dp = 32
+    N_ep = 32
     N_generations = 20
     learning_rate = 1e-2
     learning_steps = 10
@@ -94,8 +98,9 @@ def run_optimizer():
 
     # Optimize!
     prng_key, subkey = jax.random.split(prng_key)
-    dp_opt, opt_cost = opt.optimize(
+    dp_opt, ep_pop, opt_cost = opt.optimize(
         subkey,
+        dp_init,
         disp=True,
     )
     print("==================================")

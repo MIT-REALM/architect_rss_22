@@ -4,7 +4,7 @@ from architect.design import BoundedDesignProblem
 from .sat_cost import sat_cost
 from .sat_design_parameters import SatDesignParameters
 from .sat_exogenous_parameters import SatExogenousParameters
-from .sat_simulator import sat_simulate
+from .sat_simulator import sat_simulate_dt
 from .sat_stl_specification import make_sat_rendezvous_specification
 
 
@@ -12,7 +12,6 @@ def make_sat_design_problem(
     specification_weight: float,
     time_steps: int,
     dt: float,
-    substeps: int,
 ) -> BoundedDesignProblem:
     """Make an instance of the multi-agent manipulation design problem.
     Uses two turtlebots.
@@ -21,7 +20,6 @@ def make_sat_design_problem(
         specification_weight: how much to weight the STL robustness in the cost
         time_steps: the number of steps to simulate
         dt: the duration of each time step
-        substeps: how many smaller updates to break this interval into
     returns:
         a BoundedDesignProblem
     """
@@ -45,17 +43,15 @@ def make_sat_design_problem(
             specification_weight,
             time_steps,
             dt,
-            substeps,
         )
 
     # Wrap the simulator function
     def simulator(design_params, exogenous_sample):
-        return sat_simulate(
+        return sat_simulate_dt(
             design_params,
             exogenous_sample,
             time_steps,
             dt,
-            substeps,
         )
 
     # Make a design problem instance

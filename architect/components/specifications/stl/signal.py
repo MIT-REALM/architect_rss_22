@@ -1,4 +1,5 @@
 """Defines a notion of discrete-time signals used by STL specifications"""
+from functools import partial
 from typing import Optional
 
 import jax
@@ -7,7 +8,9 @@ from jax.nn import logsumexp
 
 
 @jax.jit
-def stack(*signals: jnp.ndarray, common_tsteps: Optional[int] = None) -> jnp.ndarray:
+def stack(
+    signal_1: jnp.ndarray, signal_2: jnp.ndarray, common_tsteps: Optional[int] = None
+) -> jnp.ndarray:
     """Stack the given signals into a single signal
 
     If the given signals do not have the same time indices, they will be linearly
@@ -16,38 +19,41 @@ def stack(*signals: jnp.ndarray, common_tsteps: Optional[int] = None) -> jnp.nda
     Output will have the same number of samples as the largest input signal.
 
     args:
-        signals: a list of jnp arrays where the first row contains the timestamps
+        signal_1, signal_2: jnp arrays where the first row contains the timestamps
             and subsequent rows contain the sampled values. Samples are grouped by
             column
     """
     # Get the union of time indices
     new_t = jnp.array([]).reshape(-1)
-    size = sum([signal.shape[1] for signal in signals])
-    for signal in signals:
-        new_t = jnp.union1d(new_t, signal[0], size=size)
+    size = signal_1.shape[1] + signal_2.shape[1]
+    new_t = jnp.union1d(new_t, signal_1[0], size=size)
+    new_t = jnp.union1d(new_t, signal_2[0], size=size)
 
     new_t = jnp.sort(new_t)
 
     # Get the signal values by interpolating at the new time indices
-    new_n = sum([signal.shape[0] - 1 for signal in signals])
+    new_n = signal_1.shape[0] + signal_2.shape[0] - 2
     new_T = new_t.shape[0]
     new_x = jnp.zeros((new_n, new_T))
     current_idx = 0
-    for signal in signals:
-        for i in range(1, signal.shape[0]):
-            new_x = new_x.at[current_idx].set(jnp.interp(new_t, signal[0], signal[i]))
-            current_idx += 1
+    for i in range(1, signal_1.shape[0]):
+        new_x = new_x.at[current_idx].set(jnp.interp(new_t, signal_1[0], signal_1[i]))
+        current_idx += 1
+    for i in range(1, signal_2.shape[0]):
+        new_x = new_x.at[current_idx].set(jnp.interp(new_t, signal_2[0], signal_2[i]))
+        current_idx += 1
 
     stacked_signal = jnp.vstack((new_t.reshape(1, -1), new_x))
 
     return stacked_signal
 
 
-@jax.jit
+@partial(jax.jit, static_argnames=["interpolate"])
 def max1d(
     signal_1: jnp.ndarray,
     signal_2: jnp.ndarray,
     smoothing: float,
+    interpolate: bool = True,
 ) -> jnp.ndarray:
     """Take the elementwise smoothed maximum (log-sum-exp) of the two signals.
 
@@ -62,6 +68,8 @@ def max1d(
             grouped by column.
         smoothing: the parameter determining how much to smoothly approximate the
             max of two signals. Uses the log-sum-exp approximation.
+        interpolate: if False, only compare signals at the given timestamps, don't
+            look for intersections between points
     returns:
         a signal with shape[0] = 2 containing the smoothed maximum of the two signals
     """
@@ -75,6 +83,13 @@ def max1d(
 
     # Re-sample the signals to the same timestamps
     merged_s = stack(signal_1, signal_2)
+
+    # If we don't need to interpolate, this is very simple
+    if not interpolate:
+        smoothed_max = 1 / smoothing * logsumexp(smoothing * merged_s[1:], axis=0)
+        return jnp.vstack((merged_s[0].reshape(1, -1), smoothed_max))
+
+    # If we need to interpolate, it gets more complicated
 
     # To make sure we don't introduce conservatism, we need to add a timestamped
     # sample at the intersection between these two signals. First, find all
@@ -94,14 +109,14 @@ def max1d(
         # Get the slope of each signal in this domain.
         x1_start = merged_s[1, i]
         x1_end = merged_s[1, i + 1]
-        dx1_dt = (x1_end - x1_start) / dt
+        dx1_dt = (x1_end - x1_start) / (dt + 1e-3)
         x2_start = merged_s[2, i]
         x2_end = merged_s[2, i + 1]
-        dx2_dt = (x2_end - x2_start) / dt
+        dx2_dt = (x2_end - x2_start) / (dt + 1e-3)
 
         # Use the slopes to compute the time of the intersection relative to the
         # start time
-        dt_intersect = (x2_start - x1_start) / (dx1_dt - dx2_dt)
+        dt_intersect = (x2_start - x1_start) / (dx1_dt - dx2_dt + 1e-3)
         dt_intersect = jnp.nan_to_num(dt_intersect)
         t_intersect = intersection_t + dt_intersect
         return t_intersect

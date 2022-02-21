@@ -1,6 +1,7 @@
 """
 Optimizes a design to achieve minimal cost, regularized by the variance of the cost
 """
+import time
 from typing import Any, Callable, Dict, Optional, Tuple
 
 import jax
@@ -168,6 +169,7 @@ class VarianceRegularizedOptimizerAD(object):
         if maxiter is not None:
             opts["maxiter"] = maxiter
 
+        start = time.perf_counter()
         result = sciopt.minimize(
             f,
             initial_guess,
@@ -177,6 +179,8 @@ class VarianceRegularizedOptimizerAD(object):
             constraints=constraints,
             options=opts,
         )
+        end = time.perf_counter()
+        print(f"Ran in {end - start} s.")
 
         # Extract the solution and get the cost and variance at that point
         design_params_opt = jnp.array(result.x)

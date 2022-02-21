@@ -5,10 +5,10 @@ import jax.numpy as jnp
 
 import architect.components.specifications.stl as stl
 
-from .sat_simulator import sat_simulate
+from .sat_simulator import sat_simulate_dt
 
 
-@partial(jax.jit, static_argnames=["specification", "substeps"])
+@partial(jax.jit, static_argnames=["specification"])
 def sat_cost(
     design_params: jnp.ndarray,
     exogenous_sample: jnp.ndarray,
@@ -16,7 +16,6 @@ def sat_cost(
     specification_weight: float,
     time_steps: int,
     dt: float,
-    substeps: int,
 ) -> jnp.ndarray:
     """Compute the cost based on given beacon locations.
 
@@ -31,17 +30,15 @@ def sat_cost(
         specification_weight: how much to weight the STL robustness in the cost
         time_steps: the number of steps to simulate
         dt: the duration of each time step
-        substeps: how many smaller updates to break this interval into
     returns:
         scalar cost
     """
     # Get the state trace and control effort from simulating
-    state_trace, total_effort = sat_simulate(
+    state_trace, total_effort = sat_simulate_dt(
         design_params,
         exogenous_sample,
         time_steps,
         dt,
-        substeps,
     )
 
     # Get the robustness of the formula on this state trace

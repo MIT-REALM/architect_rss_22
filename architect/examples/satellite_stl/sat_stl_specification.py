@@ -1,6 +1,18 @@
+import jax
 import jax.numpy as jnp
 
 import architect.components.specifications.stl as stl
+
+
+@jax.jit
+def softnorm(x):
+    """Compute the 2-norm, but if x is too small replace it with the squared 2-norm
+    to make sure it's differentiable. This function is continuous and has a derivative
+    that is defined everywhere, but its derivative is discontinuous.
+    """
+    eps = 1e-5
+    scaled_square = lambda x: (eps * (x / eps) ** 2).sum()
+    return jax.lax.cond(jnp.linalg.norm(x) >= eps, jnp.linalg.norm, scaled_square, x)
 
 
 def make_sat_rendezvous_specification() -> stl.STLFormula:
@@ -18,17 +30,17 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
     # Make a predicate for the speed being below some threshold
     # Jewison and Erwin put this as 5 cm/s, so consider decreasing this value to match
     speed_threshold = 0.1  # m/s
-    mu_negative_speed = lambda q_t: -jnp.linalg.norm(q_t[3:])  # 1-lipschitz
+    mu_negative_speed = lambda q_t: -softnorm(q_t[3:])  # 1-lipschitz
     p_low_speed = stl.STLPredicate(mu_negative_speed, -speed_threshold)
 
     # Make a predicate for being docked with the chaser satellite
     docking_threshold = 0.1  # m
-    mu_negative_distance = lambda q_t: -jnp.linalg.norm(q_t[:3])  # 1-lipschitz
+    mu_negative_distance = lambda q_t: -softnorm(q_t[:3])  # 1-lipschitz
     p_docked = stl.STLPredicate(mu_negative_distance, -docking_threshold)
 
     # Make a predicate for being outside the min waiting radius
     min_waiting_radius = 2.0  # m
-    mu_distance = lambda q_t: jnp.linalg.norm(q_t[:3])  # 1-lipschitz
+    mu_distance = lambda q_t: softnorm(q_t[:3])  # 1-lipschitz
     p_outside_min_radius = stl.STLPredicate(mu_distance, min_waiting_radius)
 
     # Make a predicate for being inside the max waiting radius
@@ -47,7 +59,9 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
     # Maintain separation from the target until speed is low enough, and maintain low
     # low speed during approch
     safety_constraint = stl.STLUntimedUntil(
-        p_outside_min_radius, stl.STLUntimedAlways(p_low_speed)
+        p_outside_min_radius,
+        stl.STLUntimedAlways(p_low_speed),
+        interpolate=True,
     )
 
     # Reach the target before the end of the trajectory
@@ -67,7 +81,12 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
     # Combine to mission requirement
     mission_spec = stl.STLAnd(
         safety_constraint,
-        stl.STLAnd(eventually_reach_waiting_zone_and_wait, eventually_reach_target),
+        stl.STLAnd(
+            eventually_reach_waiting_zone_and_wait,
+            eventually_reach_target,
+            interpolate=True,
+        ),
+        interpolate=True,
     )
 
-    return stl.STLAnd(safety_constraint, eventually_reach_target)
+    return stl.STLAnd(safety_constraint, eventually_reach_target, interpolate=True)

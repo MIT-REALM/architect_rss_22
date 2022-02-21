@@ -1,5 +1,6 @@
 """Dynamics information for a discrete-time satellite, linearized in the CHW frame"""
 from functools import partial
+from typing import Tuple
 
 import jax
 import jax.numpy as jnp
@@ -12,6 +13,34 @@ A_GEO = 42164e3  # GEO semi-major axis (m)
 A_LEO = 353e3  # GEO semi-major axis (m)
 M_CHASER = 500  # chaser satellite mass
 N = jnp.sqrt(MU / A_LEO ** 3)  # mean-motion parameter
+
+
+@jax.jit
+def linear_satellite_dt_AB(dt: float) -> Tuple[jnp.ndarray]:
+    # Define continuous-time A and B matrices
+    A = jnp.zeros((6, 6))
+    A = A.at[0, 3].set(1.0)
+    A = A.at[1, 4].set(1.0)
+    A = A.at[2, 5].set(1.0)
+    A = A.at[3, 0].set(3 * N ** 2)
+    A = A.at[3, 4].set(2 * N)
+    A = A.at[4, 3].set(-2 * N)
+    A = A.at[5, 2].set(- (N ** 2))
+
+    B = jnp.zeros((6, 3))
+    B = B.at[3, 0].set(1 / M_CHASER)
+    B = B.at[4, 1].set(1 / M_CHASER)
+    B = B.at[5, 2].set(1 / M_CHASER)
+
+    # Get discrete-time versions using the matrix exponential
+    M = jnp.zeros((9, 9))
+    M = M.at[:6, :6].set(A)
+    M = M.at[:6, 6:].set(B)
+    F = jax.scipy.linalg.expm(dt * M)
+    A_dt = F[:6, :6]
+    B_dt = F[:6, 6:]
+
+    return A_dt, B_dt
 
 
 @jax.jit

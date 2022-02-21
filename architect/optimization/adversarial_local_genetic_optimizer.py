@@ -15,7 +15,7 @@ from architect.design import BoundedDesignProblem
 
 
 # Define some useful static methods to JIT compile
-@jax.jit
+@partial(jax.jit, static_argnames=["n_mutations"])
 def mutate_population(
     prng_key: PRNGKeyArray, pop: jnp.ndarray, n_mutations: int, mutation_rate: float
 ) -> jnp.ndarray:
@@ -43,7 +43,7 @@ def mutate_population(
     return pop.at[mutation_indices].add(perturbation)
 
 
-@jax.jit
+@partial(jax.jit, static_argnames=["new_samples"])
 def crossover(
     prng_key: PRNGKeyArray, pop: jnp.ndarray, new_samples: int
 ) -> jnp.ndarray:
@@ -57,7 +57,8 @@ def crossover(
     """
     # Figure out which things to cross
     prng_key, prng_subkey = jax.random.split(prng_key)
-    parent_1 = pop[:new_samples]
+    parent_1 = jax.random.choice(prng_subkey, pop, shape=(new_samples,))
+    prng_key, prng_subkey = jax.random.split(prng_key)
     parent_2 = jax.random.choice(prng_subkey, pop, shape=(new_samples,))
 
     # Figure out how much to cross them
@@ -72,7 +73,7 @@ def crossover(
     return jnp.concatenate((pop, children))
 
 
-@jax.jit
+@partial(jax.jit, static_argnames=["n_keep_samples"])
 def downselect_and_cross(
     prng_key: PRNGKeyArray,
     pop: jnp.ndarray,
@@ -111,41 +112,51 @@ def downselect_and_cross(
 
 # @partial(jax.jit, static_argnames=["n_steps", "cost_and_grad"])
 def gradient_descent(
-    params: jnp.ndarray,
-    other_params: jnp.ndarray,
+    design_params: jnp.ndarray,
+    exogenous_params: jnp.ndarray,
     cost_and_grad: Callable[
-        [jnp.ndarray, jnp.ndarray], Tuple[jnp.ndarray, jnp.ndarray]
+        [jnp.ndarray, jnp.ndarray], Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]]
     ],
-    param_bounds: jnp.ndarray,
+    design_param_bounds: jnp.ndarray,
+    exogenous_param_bounds: jnp.ndarray,
     learning_rate: float,
     n_steps: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """Run gradient descent for a fixed number of steps.
 
     args:
-        params: (n,) array initial guess for parameters being optimized
-        other_params: (batch, m) array values of parameters not being optimized
-        cost_and_grad: function taking (n,) x (batch, m) -> (1,) x (n,)
-        param_bounds: (n, 2) array of lower and upper bounds on each parameter
+        design_params: (n,) array initial guess for parameters being optimized
+        exogenous_params: (batch, m) array values of parameters not being optimized
+        cost_and_grad: function taking (n,) x (m,) -> (1,) x (n,) x (m,)
+            (i.e. returns the cost and gradients wrt design and exogenous params).
+        design_param_bounds: (n, 2) array of lower and upper bounds on each parameter
+        exogenous_param_bounds: (n, 2) array of lower and upper bounds on each parameter
         learning_rate: gradient descent step size
         n_steps: number of steps to take
     returns
-        - optimized parameters
-        - cost of optimized parameters
+        - optimized design parameters
+        - optimized exogenous parameters
+        - cost with optimized parameters
     """
     for i in range(n_steps):
         # Get the gradient
-        _, grad = cost_and_grad(params, other_params)
+        _, (grad_dp, grad_ep) = cost_and_grad(design_params, exogenous_params)
 
-        # Step
-        params = params - learning_rate * grad
+        # Step (design params minimize, but exogenous params maximize)
+        design_params = design_params - learning_rate * grad_dp
+        exogenous_params = exogenous_params + learning_rate * grad_ep
 
         # Project to bounds
-        params = jnp.clip(params, param_bounds[:, 0], param_bounds[:, 0])
+        design_params = jnp.clip(
+            design_params, design_param_bounds[:, 0], design_param_bounds[:, 1]
+        )
+        exogenous_params = jnp.clip(
+            exogenous_params, exogenous_param_bounds[:, 0], exogenous_param_bounds[:, 1]
+        )
 
     # Return optimized params and cost
-    cost, _ = cost_and_grad(params, other_params)
-    return params, cost
+    cost, _ = cost_and_grad(design_params, exogenous_params)
+    return design_params, exogenous_params, cost
 
 
 class AdversarialLocalGeneticOptimizer(object):
@@ -204,20 +215,26 @@ class AdversarialLocalGeneticOptimizer(object):
         self._dp_pop = jnp.zeros((self.N_dp, self.design_problem.design_params.size))
         self._ep_pop = jnp.zeros((self.N_ep, self.design_problem.exogenous_params.size))
 
-    def initialize_populations(self, prng_key: PRNGKeyArray):
+    def initialize_populations(
+        self, prng_key: PRNGKeyArray, initial_design_params: jnp.ndarray
+    ):
         """Randomly initialize the populations of design and exogenous parameters.
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
+            initial_design_params: initial values for design params
         """
-        # Initialize design parameters uniformly within their bounds
+        # Initialize design parameters uniformly spread around the initial guess
+        # spread = 10% of bounds
         prng_key, prng_subkey = jax.random.split(prng_key)
-        self._dp_pop = jax.random.uniform(prng_key, shape=self._dp_pop.shape)
+        self._dp_pop = jax.random.uniform(
+            prng_key, shape=self._dp_pop.shape, minval=-1.0, maxval=1.0
+        )
         for dim_idx in range(self.design_problem.design_params.size):
             lower, upper = self.design_problem.design_params.bounds[dim_idx]
-            spread = upper - lower
+            spread = 0.1 * (upper - lower)
             self._dp_pop = self._dp_pop.at[:, dim_idx].set(
-                self._dp_pop[:, dim_idx] * spread + lower
+                self._dp_pop[:, dim_idx] * spread + initial_design_params[dim_idx]
             )
 
         # Initialize exogenous parameters uniformly within their bounds
@@ -226,56 +243,10 @@ class AdversarialLocalGeneticOptimizer(object):
             prng_subkey, batch_size=self.N_ep
         )
 
-    def compile_cost_grad_fns(
-        self, smoothing: float = 1.0
-    ) -> Tuple[
-        Callable[[jnp.ndarray, jnp.ndarray], Tuple[jnp.ndarray, jnp.ndarray]],
-        Callable[[jnp.ndarray, jnp.ndarray], Tuple[jnp.ndarray, jnp.ndarray]],
-    ]:
-        """Compile the cost and gradient functions for local optimization of both
-        design and exogenous parameters.
-
-        args:
-            smoothing: parameter determining how smooth the approximate maximum is.
-                Larger = more exact.
-
-        returns:
-            - Jitted cost and gradient function for optimizing design parameters
-            - Jitted cost and gradient function for optimizing exogenous parameters
-
-        both returned functions are vmapped to be run on the entire population at once
-        """
-        # Design parameters are changed to minimize the cost
-        def dp_objective(dp: jnp.ndarray, ep: jnp.ndarray) -> jnp.ndarray:
-            return self.design_problem.cost_fn(dp, ep)
-
-        # Exogenous parameters are changed to maximize the cost
-        def ep_objective(dp: jnp.ndarray, ep: jnp.ndarray) -> jnp.ndarray:
-            return -self.design_problem.cost_fn(dp, ep)
-
-        # Vectorize each with respect to the other
-        dp_objective_v = jax.vmap(dp_objective, (None, 0))  # no batch on dp, batch ep
-        ep_objective_v = jax.vmap(ep_objective, (0, None))  # batch on dp, no batch ep
-
-        # Take the maximum of each objective with respect to the other set of parameters
-        def dp_max_objective(dp: jnp.ndarray, eps: jnp.ndarray) -> jnp.ndarray:
-            return 1 / smoothing * logsumexp(smoothing * dp_objective_v(dp, eps))
-
-        # Flip argument order so it's "what's being optimized" first and a batch
-        # of fixed stuff afterwards
-        def ep_max_objective(ep: jnp.ndarray, dps: jnp.ndarray) -> jnp.ndarray:
-            return 1 / smoothing * logsumexp(smoothing * ep_objective_v(dps, ep))
-
-        # Get the cost and grad
-        dp_max_objective_grad = jax.value_and_grad(dp_max_objective)
-        ep_max_objective_grad = jax.value_and_grad(ep_max_objective)
-
-        # Return these objective functions
-        return dp_max_objective_grad, ep_max_objective_grad
-
     def optimize(
         self,
         prng_key: PRNGKeyArray,
+        initial_design_params: jnp.ndarray,
         smoothing: float = 1.0,
         disp: bool = False,
     ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -283,6 +254,7 @@ class AdversarialLocalGeneticOptimizer(object):
 
         args:
             prng_key: a 2-element JAX array containing the PRNG key used for sampling.
+            initial_design_params: array of single initial value for the design params
             smoothing: parameter determining how smooth the approximate maximum is.
                 Larger = more exact.
             disp: if True, display optimization progress
@@ -293,51 +265,63 @@ class AdversarialLocalGeneticOptimizer(object):
         """
         # Initialize populations
         print("Initializing population... ", end="", flush=True)
-        self.initialize_populations(prng_key)
-        print("Done.", flush=True)
+        start = time.perf_counter()
+        self.initialize_populations(prng_key, initial_design_params)
+        end = time.perf_counter()
+        print(f"Done (took {(end - start):0.3f} s)", flush=True)
 
         # Compile objectives
         print("Constructing objectives... ", end="", flush=True)
-        dp_cost_and_grad, ep_cost_and_grad = self.compile_cost_grad_fns(smoothing)
-        print("Done.", flush=True)
+        start = time.perf_counter()
+        objective_and_grad = jax.jit(
+            jax.value_and_grad(self.design_problem.cost_fn, argnums=(0, 1))
+        )
+        # Run once to activate any JAX transforms
+        objective_and_grad(self._dp_pop[0, :], self._ep_pop[0, :])
+        end = time.perf_counter()
+        print(f"Done (took {(end - start):0.3f} s)", flush=True)
+
+        N_tests = 5
+        total_time = 0.0
+        for i in range(N_tests):
+            start = time.perf_counter()
+            objective_and_grad(self._dp_pop[0, :], self._ep_pop[0, :])
+            end = time.perf_counter()
+            total_time += end - start
+        print(f"Running both objectives takes {total_time / N_tests} s on average")
 
         # Vectorize and compile gradient descent functions
-        def dp_gradient_descent(
-            dp: jnp.ndarray, eps: jnp.ndarray
+        def wrapped_gradient_descent(
+            dp: jnp.ndarray, ep: jnp.ndarray
         ) -> Tuple[jnp.ndarray, jnp.ndarray]:
             return gradient_descent(
                 dp,
-                eps,
-                dp_cost_and_grad,
-                self.design_problem.design_params.bounds,
-                self.learning_rate,
-                self.learning_steps,
-            )
-
-        def ep_gradient_descent(
-            ep: jnp.ndarray, dps: jnp.ndarray
-        ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-            return gradient_descent(
                 ep,
-                dps,
-                ep_cost_and_grad,
+                objective_and_grad,
+                self.design_problem.design_params.bounds,
                 self.design_problem.exogenous_params.bounds,
                 self.learning_rate,
                 self.learning_steps,
             )
 
-        print("Vectorizing... ", end="", flush=True)
-        dp_gradient_descent_v = jax.vmap(dp_gradient_descent, (0, None))
-        ep_gradient_descent_v = jax.vmap(ep_gradient_descent, (0, None))
-        print("Done.", flush=True)
+        print("Constructing gradient descent functions... ", end="", flush=True)
+        start = time.perf_counter()
+        wrapped_gradient_descent(self._dp_pop[0, :], self._ep_pop[0, :])
+        end = time.perf_counter()
+        print(f"Done (took {(end - start):0.3f} s)", flush=True)
 
-        # Run each once to activate JIT
+        print("Vectorizing... ", end="", flush=True)
+        start = time.perf_counter()
+        gradient_descent_v = jax.vmap(wrapped_gradient_descent, (0, 0))
+        end = time.perf_counter()
+        print(f"Done (took {(end - start):0.3f} s)", flush=True)
+
+        # Run once to make sure JIT is active
         print("Burn-in... ", end="", flush=True)
         start = time.perf_counter()
-        dp_gradient_descent_v(self._dp_pop, self._ep_pop)
-        ep_gradient_descent_v(self._ep_pop, self._dp_pop)
+        gradient_descent_v(self._dp_pop, self._ep_pop)
         end = time.perf_counter()
-        print(f"Done (took {end - start} s)", flush=True)
+        print(f"Done (took {(end - start):0.3f} s)", flush=True)
 
         # For each generation
         print("Starting evolution...", flush=True)
@@ -348,20 +332,16 @@ class AdversarialLocalGeneticOptimizer(object):
             self._dp_pop, dp_costs = dp_gradient_descent_v(self._dp_pop, self._ep_pop)
             print(f"Done; best (min) cost {dp_costs.min()}", flush=True)
 
-            print(gen_tag + "Downselecting and crossing... ", end="", flush=True)
             self._dp_pop = downselect_and_cross(
                 prng_key, self._dp_pop, dp_costs, self.n_keep_dp
             )
-            print("Done", flush=True)
 
-            print(gen_tag + "Mutating...", end="", flush=True)
             self._dp_pop = mutate_population(
                 prng_key,
                 self._dp_pop,
                 self.n_keep_dp,
                 self.mutation_rate,
             )
-            print("Done", flush=True)
 
             # Optimize EP, downselect, crossover, and mutate
             gen_tag = f"[Generation {generation_i}][exogenous] "
@@ -369,26 +349,24 @@ class AdversarialLocalGeneticOptimizer(object):
             self._ep_pop, ep_costs = ep_gradient_descent_v(self._ep_pop, self._dp_pop)
             print(f"Done; best (max) cost {ep_costs.max()}", flush=True)
 
-            print(gen_tag + "Downselecting and crossing... ", end="", flush=True)
             self._ep_pop = downselect_and_cross(
                 prng_key, self._ep_pop, ep_costs, self.n_keep_ep
             )
-            print("Done", flush=True)
 
-            print(gen_tag + "Mutating...", end="", flush=True)
             self._ep_pop = mutate_population(
                 prng_key,
                 self._ep_pop,
                 self.n_keep_ep,
                 self.mutation_rate,
             )
-            print("Done", flush=True)
 
         print("Evolution done!", flush=True)
 
         # Return the best set of design parameters, the population of exogenous
         # parameters, and the optimal cost (max over _ep_pop)
-        dp_costs, _ = jax.vmap(dp_cost_and_grad, (0, None))(self._dp_pop, self._ep_pop)
+        dp_costs, _ = jax.vmap(objective_and_grad, (0, None))(
+            self._dp_pop, self._ep_pop
+        )
         dp_opt_idx = jnp.argmin(dp_costs)
         dp_opt = self._dp_pop[dp_opt_idx]
         dp_opt_cost = dp_costs[dp_opt_idx]

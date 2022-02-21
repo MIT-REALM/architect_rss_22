@@ -22,25 +22,28 @@ def run_optimizer():
 
     # Make the design problem
     t_sim = 200.0
-    dt = 0.3
-    substeps = 15
+    dt = 2.0
     time_steps = int(t_sim // dt)
-    specification_weight = 1e4
+    specification_weight = 2e4
     prng_key, subkey = jax.random.split(prng_key)
     sat_design_problem = make_sat_design_problem(
-        specification_weight, time_steps, dt, substeps
+        specification_weight, time_steps, dt
     )
 
     # Run a simulation for plotting the optimal solution
     exogenous_sample = sat_design_problem.exogenous_params.sample(prng_key)
     dp_init = sat_design_problem.design_params.get_values()
+    print("Simulating initial guess... ", end="", flush=True)
     state_trace, total_effort = sat_design_problem.simulator(dp_init, exogenous_sample)
+    print("Done.", flush=True)
 
     # Get the robustness of this solution
     stl_specification = make_sat_rendezvous_specification()
     t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
     signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
+    print("Computing initial guess robustness... ", end="", flush=True)
     robustness = stl_specification(signal)
+    print("Done.", flush=True)
 
     # Plot the results
     fig = plt.figure(figsize=plt.figaspect(0.5))
@@ -81,7 +84,7 @@ def run_optimizer():
     success, msg, dp_opt, cost_mean, cost_var = vr_opt.optimize(
         subkey,
         disp=True,
-        maxiter=1000,
+        maxiter=200,
         jit=True,
     )
     print("==================================")
