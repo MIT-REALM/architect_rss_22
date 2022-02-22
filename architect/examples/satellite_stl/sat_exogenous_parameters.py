@@ -14,9 +14,9 @@ class SatExogenousParameters(BoundedExogenousParameters):
         names = ["px0", "py0", "pz0", "vx0", "vy0", "vz0"]
         bounds = jnp.array(
             [
-                [10.0, 15.0],  # px
-                [10.0, 15.0],  # py
-                [-5.0, 5.0],  # pz
+                [10.0, 13.0],  # px
+                [10.0, 13.0],  # py
+                [-3.0, 3.0],  # pz
                 [-1.0, 1.0],  # vx
                 [-1.0, 1.0],  # vy
                 [-1.0, 1.0],  # vz
