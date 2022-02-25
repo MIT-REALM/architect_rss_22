@@ -25,7 +25,7 @@ def linear_satellite_dt_AB(dt: float) -> Tuple[jnp.ndarray]:
     A = A.at[3, 0].set(3 * N ** 2)
     A = A.at[3, 4].set(2 * N)
     A = A.at[4, 3].set(-2 * N)
-    A = A.at[5, 2].set(- (N ** 2))
+    A = A.at[5, 2].set(-(N ** 2))
 
     B = jnp.zeros((6, 3))
     B = B.at[3, 0].set(1 / M_CHASER)

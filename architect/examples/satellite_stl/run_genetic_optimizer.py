@@ -31,9 +31,7 @@ def run_optimizer():
     time_steps = int(t_sim // dt)
     specification_weight = 1e4
     prng_key, subkey = jax.random.split(prng_key)
-    sat_design_problem = make_sat_design_problem(
-        specification_weight, time_steps, dt
-    )
+    sat_design_problem = make_sat_design_problem(specification_weight, time_steps, dt)
 
     # Run a simulation for plotting the optimal solution
     exogenous_sample = sat_design_problem.exogenous_params.sample(prng_key)

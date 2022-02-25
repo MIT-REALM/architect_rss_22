@@ -42,9 +42,9 @@ class AdversarialLocalOptimizer(object):
         super(AdversarialLocalOptimizer, self).__init__()
         self.design_problem = design_problem
 
-    def compile_cost_dp_single_phi(
+    def compile_cost_dp(
         self, prng_key: PRNGKeyArray, jit: bool = True
-    ) -> Callable[[np.ndarray], Tuple[float, np.ndarray]]:
+    ) -> Callable[[np.ndarray, np.ndarray], Tuple[float, np.ndarray]]:
         """Compile the cost function for the design parameters (to minimize cost)
 
         args:
@@ -66,219 +66,29 @@ class AdversarialLocalOptimizer(object):
         if jit:
             cost_and_grad = jax.jit(cost_and_grad)
 
-        # Wrap in numpy access
+        # Wrap in numpy access and take the mean
         def cost_and_grad_np(
             design_params_np: np.ndarray, exogenous_params_np: np.ndarray
         ):
-            cost, grad = cost_and_grad(
-                jnp.array(design_params_np), jnp.array(exogenous_params_np)
+            # Manually batch to avoid re-jitting
+            exogenous_params = jnp.array(exogenous_params_np).reshape(
+                -1, exogenous_params_np.shape[-1]
             )
+            cost = jnp.zeros((exogenous_params.shape[0]))
+            grad = jnp.zeros((exogenous_params.shape[0], design_params_np.size))
 
-            return cost.item(), np.array(grad, dtype=np.float64)
+            for i, ep in enumerate(exogenous_params):
+                cost_i, grad_i = cost_and_grad(
+                    jnp.array(design_params_np),
+                    ep,
+                )
+                cost = cost.at[i].set(cost_i)
+                grad = grad.at[i].set(grad_i)
+
+            return cost.mean().item(), np.array(grad.mean(axis=0), dtype=np.float64)
 
         # Return the needed functions
         return cost_and_grad_np
-
-    def compile_cost_dp_multi_phi(
-        self, prng_key: PRNGKeyArray, n_phi: int, vw: float = 0.0, jit: bool = True
-    ) -> Callable[[np.ndarray], Tuple[float, np.ndarray]]:
-        """Compile the cost function for the design parameters (to minimize cost)
-
-        args:
-            prng_key: a 2-element JAX array containing the PRNG key used for sampling.
-            n_phi: number of samples from phi to consider
-            vw: variance weight to use
-            jit: if True, jit the cost and gradient function
-        returns:
-            - a function that takes parameter values and returns a tuple of cost and the
-                gradient of that cost w.r.t. the design parameters.
-        """
-
-        def cost(
-            design_params: jnp.ndarray, exogenous_params: jnp.ndarray
-        ) -> jnp.ndarray:
-            return self.design_problem.cost_fn(design_params, exogenous_params)
-
-        # Vectorize the cost function with respect to the exogenous parameters
-        # None indicates that we do not vectorize wrt design parameters
-        # 0 indicates that we add a batch dimension as the 0-th dimension of the
-        # exogenous parameters
-        costv = jax.vmap(cost, (None, 0))
-
-        # Define the variance-regularized cost as a function of design parameters
-        def cost_mean_and_variance(
-            design_params: jnp.ndarray,
-        ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-            # Sample a number of exogenous parameters. This will generate the same
-            # sample on each call, since we use the same prng_key
-            exogenous_sample = self.design_problem.exogenous_params.sample(
-                prng_key, n_phi
-            )
-
-            # Evaluate the cost on this sample
-            sample_cost = costv(design_params, exogenous_sample)
-
-            # Compute the mean and variance of the sample cost
-            sample_mean = sample_cost.mean()
-            sample_variance = sample_cost.var(ddof=1)
-
-            return sample_mean, sample_variance
-
-        def variance_regularized_cost(design_params: jnp.ndarray) -> jnp.ndarray:
-            sample_mean, sample_variance = cost_mean_and_variance(design_params)
-
-            # Return the variance-regularized cost
-            return sample_mean + vw * sample_variance
-
-        # Automatically differentiate
-        vr_cost_and_grad = jax.value_and_grad(variance_regularized_cost)
-
-        if jit:
-            vr_cost_and_grad = jax.jit(vr_cost_and_grad)
-
-        # Wrap in numpy access
-        def vr_cost_and_grad_np(design_params_np: np.ndarray, ep_np: np.ndarray):
-            # We don't use these values of the exogenous params, since we've already
-            # sampled a bunch of them
-            vr_cost, grad = vr_cost_and_grad(jnp.array(design_params_np))
-
-            return vr_cost.item(), np.array(grad, dtype=np.float64)
-
-        # Return the needed function
-        return vr_cost_and_grad_np
-
-    def compile_cost_dp_sens_single_phi(
-        self, prng_key: PRNGKeyArray, sensitivity_weight: float, jit: bool = True
-    ) -> Callable[[np.ndarray], Tuple[float, np.ndarray]]:
-        """Compile the cost function for the design parameters (to minimize cost)
-
-        args:
-            prng_key: a 2-element JAX array containing the PRNG key used for sampling.
-            sensitivity_weight: regularization weight for sensitivity to exogenous
-                parameters
-            jit: if True, jit the cost and gradient function
-        returns:
-            - a function that takes parameter values and returns a tuple of cost and the
-                gradient of that cost w.r.t. the design parameters.
-        """
-        # Wrap the cost function
-        def cost(
-            design_params: jnp.ndarray, exogenous_params: jnp.ndarray
-        ) -> jnp.ndarray:
-            return self.design_problem.cost_fn(design_params, exogenous_params)
-
-        # Automatically differentiate wrt phi
-        cost_and_grad_phi = jax.value_and_grad(cost, argnums=(1))
-
-        # Make the sensitivity-regularized cost
-        def sensitivity_regularized_cost(
-            design_params: jnp.ndarray, exogenous_params: jnp.ndarray
-        ) -> jnp.ndarray:
-            cost, grad_phi = cost_and_grad_phi(design_params, exogenous_params)
-            return cost + (grad_phi ** 2).sum() * sensitivity_weight
-
-        # Differentiate again wrt theta
-        cost_and_grad = jax.value_and_grad(sensitivity_regularized_cost, argnums=(0))
-
-        if jit:
-            cost_and_grad = jax.jit(cost_and_grad)
-
-        # Wrap in numpy access
-        def cost_and_grad_np(
-            design_params_np: np.ndarray, exogenous_params_np: np.ndarray
-        ):
-            cost, grad = cost_and_grad(
-                jnp.array(design_params_np), jnp.array(exogenous_params_np)
-            )
-
-            return cost.item(), np.array(grad, dtype=np.float64)
-
-        # Return the needed functions
-        return cost_and_grad_np
-
-    def compile_cost_dp_sens_multi_phi(
-        self,
-        prng_key: PRNGKeyArray,
-        n_phi: int,
-        sw: float = 0.0,
-        vw: float = 0.0,
-        jit: bool = True,
-    ) -> Callable[[np.ndarray], Tuple[float, np.ndarray]]:
-        """Compile the cost function for the design parameters (to minimize cost)
-
-        args:
-            prng_key: a 2-element JAX array containing the PRNG key used for sampling.
-            n_phi: number of samples from phi to consider
-            sw: sensitivity weight to use
-            vw: variance weight to use
-            jit: if True, jit the cost and gradient function
-        returns:
-            - a function that takes parameter values and returns a tuple of cost and the
-                gradient of that cost w.r.t. the design parameters.
-        """
-
-        def cost(
-            design_params: jnp.ndarray, exogenous_params: jnp.ndarray
-        ) -> jnp.ndarray:
-            return self.design_problem.cost_fn(design_params, exogenous_params)
-
-        # Automatically differentiate wrt phi
-        cost_and_grad_phi = jax.value_and_grad(cost, argnums=(1))
-
-        # Make the sensitivity-regularized cost
-        def sensitivity_regularized_cost(
-            design_params: jnp.ndarray, exogenous_params: jnp.ndarray
-        ) -> jnp.ndarray:
-            cost, grad_phi = cost_and_grad_phi(design_params, exogenous_params)
-            return cost + (grad_phi ** 2).sum() * sw
-
-        # Vectorize the cost function with respect to the exogenous parameters
-        # None indicates that we do not vectorize wrt design parameters
-        # 0 indicates that we add a batch dimension as the 0-th dimension of the
-        # exogenous parameters
-        costv = jax.vmap(sensitivity_regularized_cost, (None, 0))
-
-        # Define the variance-regularized cost as a function of design parameters
-        def cost_mean_and_variance(
-            design_params: jnp.ndarray,
-        ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-            # Sample a number of exogenous parameters. This will generate the same
-            # sample on each call, since we use the same prng_key
-            exogenous_sample = self.design_problem.exogenous_params.sample(
-                prng_key, n_phi
-            )
-
-            # Evaluate the cost on this sample
-            sample_cost = costv(design_params, exogenous_sample)
-
-            # Compute the mean and variance of the sample cost
-            sample_mean = sample_cost.mean()
-            sample_variance = sample_cost.var(ddof=1)
-
-            return sample_mean, sample_variance
-
-        def variance_regularized_cost(design_params: jnp.ndarray) -> jnp.ndarray:
-            sample_mean, sample_variance = cost_mean_and_variance(design_params)
-
-            # Return the variance-regularized cost
-            return sample_mean + vw * sample_variance
-
-        # Automatically differentiate
-        vr_cost_and_grad = jax.value_and_grad(variance_regularized_cost)
-
-        if jit:
-            vr_cost_and_grad = jax.jit(vr_cost_and_grad)
-
-        # Wrap in numpy access
-        def vr_cost_and_grad_np(design_params_np: np.ndarray, ep_np: np.ndarray):
-            # We don't use these values of the exogenous params, since we've already
-            # sampled a bunch of them
-            vr_cost, grad = vr_cost_and_grad(jnp.array(design_params_np))
-
-            return vr_cost.item(), np.array(grad, dtype=np.float64)
-
-        # Return the needed function
-        return vr_cost_and_grad_np
 
     def compile_cost_ep(
         self, prng_key: PRNGKeyArray, jit: bool = True
@@ -323,6 +133,8 @@ class AdversarialLocalOptimizer(object):
         disp: bool = False,
         maxiter: int = 300,
         rounds: int = 1,
+        n_init: int = 4,
+        stopping_tolerance: float = 0.1,
         jit: bool = True,
     ) -> Tuple[bool, str, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Optimize the design problem, starting with the initial values stored in
@@ -334,29 +146,25 @@ class AdversarialLocalOptimizer(object):
             maxiter: maximum number of optimization iterations to perform. Defaults to
                 no limit.
             rounds: number of rounds to play between design and exogenous parameters
+            n_init: number of initial exogenous samples to start with
+            stopping_tolerance: stop when the difference between successive adversarial
+                examples is less than this value
             jit: if True, JIT the cost and gradient function.
         returns:
             a JAX array of the optimal values of the design parameters
             a JAX array of the optimal values of the exogenous parameters
-            a single-element JAX array of the cost at the optimal parameters
-            a single-element JAX array of the cost sensitivity at the optimal parameters
+            a single-element JAX array of the cost at the optimal parameters. This cost
+                is measured after the final response by the adversary.
+            a single-element JAX array of the difference between the cost after the
+                adversary's last response and the cost just before that response. This
+                effectively measures the brittleness of the optimized design parameters.
+            float of the time spent running optimization routines.
+            float of the time spent running JIT
+            int of number of rounds used
+            int number of exogenous samples used to optimized design
         """
         # Compile the cost functions for both design and exogenous parameters
-        # Single phi, vanilla cost
-        f_dp = self.compile_cost_dp_single_phi(prng_key, jit=jit)
-
-        # # Multiple phi, vanilla cost (variance weight = 0.0)
-        # f_dp = self.compile_cost_dp_multi_phi(prng_key, 32, 0.0, jit=jit)
-
-        # # Multiple phi, variance-regularized cost (variance weight = 0.1)
-        # f_dp = self.compile_cost_dp_multi_phi(prng_key, 64, 0.1, jit=jit)
-
-        # # # Single phi, sensitivity-regularized cost (weight = 1e-3)
-        # f_dp = self.compile_cost_dp_sens_single_phi(prng_key, 1e-3, jit=jit)
-
-        # # Multiple phi, sensitivity- and variance-regularized cost (sw=1e-3, vw=0.0)
-        # f_dp = self.compile_cost_dp_sens_multi_phi(prng_key, 128, 1e-3, 0.0, jit=jit)
-
+        f_dp = self.compile_cost_dp(prng_key, jit=jit)
         f_ep = self.compile_cost_ep(prng_key, jit=jit)
 
         # Get the bounds on the parameters
@@ -377,18 +185,26 @@ class AdversarialLocalOptimizer(object):
         dp_jit_end = time.perf_counter()
         f_ep(design_params, exogenous_params)
         jit_end = time.perf_counter()
-        print(
-            (
-                f"JIT took {jit_end - jit_start:.4f} s "
-                f"({dp_jit_end - jit_start:.4f} s for dp, "
-                f"{jit_end - dp_jit_end:.4f} s for ep)"
-            )
-        )
+        jit_time = jit_end - jit_start
+        # print(
+        #     (
+        #         f"JIT took {jit_time:.4f} s "
+        #         f"({dp_jit_end - jit_start:.4f} s for dp, "
+        #         f"{jit_end - dp_jit_end:.4f} s for ep)"
+        #     )
+        # )
 
+        # Maintain a population of exogenous parameters
+        exogenous_pop = self.design_problem.exogenous_params.sample(
+            prng_key, batch_size=n_init,
+        )
+        # exogenous_pop = exogenous_params.reshape(1, -1)
+
+        total_time = 0.0
         for i in range(rounds):
-            start = time.perf_counter()
+            dp_start = time.perf_counter()
             # First minimize cost by changing the design parameters
-            f = lambda dp: f_dp(dp, exogenous_params)
+            f = lambda dp: f_dp(dp, exogenous_pop)
             dp_result = sciopt.minimize(
                 f,
                 design_params,
@@ -397,14 +213,15 @@ class AdversarialLocalOptimizer(object):
                 bounds=dp_bounds,
                 options=opts,
             )
-            end = time.perf_counter()
+            dp_end = time.perf_counter()
             # Extract the result and get the cost
             design_params = np.array(dp_result.x)
-            cost, _ = f_ep(design_params, exogenous_params)
-            print(f"[Round {i}]: Optimized design params, cost {cost:.4f}")
-            print(f"[Round {i}]: Optimizing design params took {end - start:.4f} s")
+            dp_cost, _ = f_ep(design_params, exogenous_params)
+            # print(f"[Round {i}]: Optimized design params, dp_cost {dp_cost:.4f}")
+            # print(f"[Round {i}]: Optimizing dp took {dp_end - dp_start:.4f} s")
 
             # Then maximize the cost by changing the exogenous parameters
+            ep_start = time.perf_counter()
             f = lambda ep: f_ep(design_params, ep)
             ep_result = sciopt.minimize(
                 f,
@@ -414,12 +231,32 @@ class AdversarialLocalOptimizer(object):
                 bounds=ep_bounds,
                 options=opts,
             )
-            # Extract the result
+            ep_end = time.perf_counter()
+            total_time += (ep_end - ep_start) + (dp_end - dp_start)
+            # print(f"total time: {total_time}")
+            # Stop if we've converged
+            # print(f"Adversary moved {np.linalg.norm(ep_result.x - exogenous_params)}")
+            if np.linalg.norm(ep_result.x - exogenous_params) < stopping_tolerance:
+                break
+
+            # Otherwise, extract the result and add it to the population
             exogenous_params = np.array(ep_result.x)
-            print(f"[Round {i}]: Optimized exogenous params, cost {ep_result.fun:.4f}")
+            exogenous_pop = jnp.vstack((exogenous_pop, exogenous_params))
+            # print(f"[Round {i}]: Optimized exogenous params, cost {ep_result.fun:.4f}")
+
+        # print(f"Overall, optimization took {total_time:.4f} s")
+
+        pop_size = exogenous_pop.shape[0]
+        if i == rounds - 1:
+            pop_size -= 1  # don't count the sample added after the last round
 
         return (
             jnp.array(dp_result.x),
             jnp.array(ep_result.x),
-            jnp.array(ep_result.fun),
+            -jnp.array(ep_result.fun),
+            -jnp.array(ep_result.fun - dp_cost),
+            total_time,
+            jit_time,
+            i,  # number of rounds
+            pop_size,
         )

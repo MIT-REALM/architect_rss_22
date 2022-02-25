@@ -1,0 +1,9 @@
+seed,measurement,value
+0.0,Cost,11.294809
+0.0,Cost gap,7.183315
+0.0,Optimization time (s),5.79368347581476
+0.0,Compilation time (s),106.04043179610744
+0.0,STL Robustness,-4.4431663
+0.0,Total effort (N-s),136207.19
+0.0,Optimization rounds,1
+0.0,Final population size,1

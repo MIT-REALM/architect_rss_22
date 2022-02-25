@@ -1,0 +1,401 @@
+seed,measurement,value
+0.0,Cost,0.51229507
+0.0,Cost gap,0.44846857
+0.0,Optimization time (s),130.13543042214587
+0.0,Compilation time (s),77.54634377500042
+0.0,STL Robustness,-0.09481403
+0.0,Total effort (N-s),7771.292
+0.0,Optimization rounds,1.0
+0.0,Final population size,64.0
+1.0,Cost,0.3570367
+1.0,Cost gap,0.25417262
+1.0,Optimization time (s),120.80594765534624
+1.0,Compilation time (s),77.70815432723612
+1.0,STL Robustness,0.051638592
+1.0,Total effort (N-s),8495.241
+1.0,Optimization rounds,1.0
+1.0,Final population size,64.0
+2.0,Cost,0.35675842
+2.0,Cost gap,0.29026377
+2.0,Optimization time (s),109.1853505074978
+2.0,Compilation time (s),91.7632860778831
+2.0,STL Robustness,0.061631586
+2.0,Total effort (N-s),8576.101
+2.0,Optimization rounds,1.0
+2.0,Final population size,64.0
+3.0,Cost,0.37759733
+3.0,Cost gap,0.2946105
+3.0,Optimization time (s),113.78525811992586
+3.0,Compilation time (s),67.58372958097607
+3.0,STL Robustness,0.04956146
+3.0,Total effort (N-s),8944.391
+3.0,Optimization rounds,1.0
+3.0,Final population size,64.0
+4.0,Cost,0.36971024
+4.0,Cost gap,0.30746648
+4.0,Optimization time (s),122.34262323193252
+4.0,Compilation time (s),69.85608265688643
+4.0,STL Robustness,0.05625276
+4.0,Total effort (N-s),8865.422
+4.0,Optimization rounds,1.0
+4.0,Final population size,64.0
+5.0,Cost,0.42008308
+5.0,Cost gap,0.35072878
+5.0,Optimization time (s),102.51646612212062
+5.0,Compilation time (s),69.29560418380424
+5.0,STL Robustness,0.05900787
+5.0,Total effort (N-s),9582.342
+5.0,Optimization rounds,1.0
+5.0,Final population size,64.0
+6.0,Cost,0.31517142
+6.0,Cost gap,0.24223995
+6.0,Optimization time (s),104.40165564138442
+6.0,Compilation time (s),67.0891349259764
+6.0,STL Robustness,0.059428614
+6.0,Total effort (N-s),7781.0835
+6.0,Optimization rounds,1.0
+6.0,Final population size,64.0
+7.0,Cost,0.34389278
+7.0,Cost gap,0.2864682
+7.0,Optimization time (s),102.89322882518172
+7.0,Compilation time (s),67.3258326658979
+7.0,STL Robustness,0.059168834
+7.0,Total effort (N-s),8079.099
+7.0,Optimization rounds,1.0
+7.0,Final population size,64.0
+8.0,Cost,0.34190878
+8.0,Cost gap,0.2761746
+8.0,Optimization time (s),105.2366595272906
+8.0,Compilation time (s),67.61549637280405
+8.0,STL Robustness,0.059082303
+8.0,Total effort (N-s),8232.698
+8.0,Optimization rounds,1.0
+8.0,Final population size,64.0
+9.0,Cost,0.33528915
+9.0,Cost gap,0.26052245
+9.0,Optimization time (s),107.00171582913026
+9.0,Compilation time (s),67.2640385418199
+9.0,STL Robustness,0.058788877
+9.0,Total effort (N-s),8152.038
+9.0,Optimization rounds,1.0
+9.0,Final population size,64.0
+10.0,Cost,0.42646036
+10.0,Cost gap,0.3490766
+10.0,Optimization time (s),103.97258201241492
+10.0,Compilation time (s),67.10271662008017
+10.0,STL Robustness,0.045936007
+10.0,Total effort (N-s),9219.641
+10.0,Optimization rounds,1.0
+10.0,Final population size,64.0
+11.0,Cost,0.37844223
+11.0,Cost gap,0.31912977
+11.0,Optimization time (s),107.13008767878635
+11.0,Compilation time (s),66.91320414887741
+11.0,STL Robustness,0.05427584
+11.0,Total effort (N-s),8925.959
+11.0,Optimization rounds,1.0
+11.0,Final population size,64.0
+12.0,Cost,0.36589313
+12.0,Cost gap,0.29980388
+12.0,Optimization time (s),103.64303186349572
+12.0,Compilation time (s),67.5861558248289
+12.0,STL Robustness,0.053268746
+12.0,Total effort (N-s),8751.246
+12.0,Optimization rounds,1.0
+12.0,Final population size,64.0
+13.0,Cost,0.37394705
+13.0,Cost gap,0.28801766
+13.0,Optimization time (s),110.15586942387743
+13.0,Compilation time (s),67.48094954015687
+13.0,STL Robustness,0.048217613
+13.0,Total effort (N-s),8891.751
+13.0,Optimization rounds,1.0
+13.0,Final population size,64.0
+14.0,Cost,0.8884593
+14.0,Cost gap,0.8122664
+14.0,Optimization time (s),105.7873857007362
+14.0,Compilation time (s),67.30410356773064
+14.0,STL Robustness,-0.447297
+14.0,Total effort (N-s),8587.681
+14.0,Optimization rounds,1.0
+14.0,Final population size,64.0
+15.0,Cost,0.51383656
+15.0,Cost gap,0.43924588
+15.0,Optimization time (s),102.5388131318614
+15.0,Compilation time (s),67.43380748480558
+15.0,STL Robustness,-0.0737022
+15.0,Total effort (N-s),8314.207
+15.0,Optimization rounds,1.0
+15.0,Final population size,64.0
+16.0,Cost,0.37860024
+16.0,Cost gap,0.32068264
+16.0,Optimization time (s),104.79527841694652
+16.0,Compilation time (s),67.3679589247331
+16.0,STL Robustness,0.061547916
+16.0,Total effort (N-s),9010.878
+16.0,Optimization rounds,1.0
+16.0,Final population size,64.0
+17.0,Cost,0.66249675
+17.0,Cost gap,0.6041489
+17.0,Optimization time (s),106.41828385507688
+17.0,Compilation time (s),67.55544508807361
+17.0,STL Robustness,-0.21861704
+17.0,Total effort (N-s),8233.548
+17.0,Optimization rounds,1.0
+17.0,Final population size,64.0
+18.0,Cost,0.62554246
+18.0,Cost gap,0.4757783
+18.0,Optimization time (s),105.8794208727777
+18.0,Compilation time (s),67.37945970799774
+18.0,STL Robustness,-0.14255963
+18.0,Total effort (N-s),9111.478
+18.0,Optimization rounds,1.0
+18.0,Final population size,64.0
+19.0,Cost,0.55969536
+19.0,Cost gap,0.48305565
+19.0,Optimization time (s),105.57237000670284
+19.0,Compilation time (s),67.36278829118237
+19.0,STL Robustness,-0.13980192
+19.0,Total effort (N-s),7864.496
+19.0,Optimization rounds,1.0
+19.0,Final population size,64.0
+20.0,Cost,0.46362278
+20.0,Cost gap,0.38436425
+20.0,Optimization time (s),104.0485494080931
+20.0,Compilation time (s),67.3177278097719
+20.0,STL Robustness,0.009041539
+20.0,Total effort (N-s),8898.976
+20.0,Optimization rounds,1.0
+20.0,Final population size,64.0
+21.0,Cost,0.7422786
+21.0,Cost gap,0.6758955
+21.0,Optimization time (s),107.11220229882748
+21.0,Compilation time (s),67.4888145183213
+21.0,STL Robustness,-0.32253197
+21.0,Total effort (N-s),8456.855
+21.0,Optimization rounds,1.0
+21.0,Final population size,64.0
+22.0,Cost,0.29392692
+22.0,Cost gap,0.24331994
+22.0,Optimization time (s),104.51249221386388
+22.0,Compilation time (s),67.15752985700965
+22.0,STL Robustness,0.05801424
+22.0,Total effort (N-s),7335.079
+22.0,Optimization rounds,1.0
+22.0,Final population size,64.0
+23.0,Cost,0.6330105
+23.0,Cost gap,0.5632273
+23.0,Optimization time (s),119.68012058455496
+23.0,Compilation time (s),66.54824627935886
+23.0,STL Robustness,-0.20027095
+23.0,Total effort (N-s),8082.4395
+23.0,Optimization rounds,1.0
+23.0,Final population size,64.0
+24.0,Cost,0.6228276
+24.0,Cost gap,0.5646349
+24.0,Optimization time (s),117.93493634462357
+24.0,Compilation time (s),78.78835709486157
+24.0,STL Robustness,-0.2150422
+24.0,Total effort (N-s),7984.9316
+24.0,Optimization rounds,1.0
+24.0,Final population size,64.0
+25.0,Cost,0.3913498
+25.0,Cost gap,0.3253765
+25.0,Optimization time (s),126.93926605582236
+25.0,Compilation time (s),68.87056574271992
+25.0,STL Robustness,0.05768473
+25.0,Total effort (N-s),9220.023
+25.0,Optimization rounds,1.0
+25.0,Final population size,64.0
+26.0,Cost,0.3597766
+26.0,Cost gap,0.26313764
+26.0,Optimization time (s),117.81130552105606
+26.0,Compilation time (s),71.9675851999782
+26.0,STL Robustness,0.056566037
+26.0,Total effort (N-s),8624.085
+26.0,Optimization rounds,1.0
+26.0,Final population size,64.0
+27.0,Cost,0.354501
+27.0,Cost gap,0.28966
+27.0,Optimization time (s),122.55421393970028
+27.0,Compilation time (s),80.19342368794605
+27.0,STL Robustness,0.05567718
+27.0,Total effort (N-s),8539.848
+27.0,Optimization rounds,1.0
+27.0,Final population size,64.0
+28.0,Cost,0.37218925
+28.0,Cost gap,0.3068824
+28.0,Optimization time (s),129.6536884889938
+28.0,Compilation time (s),76.07403854001313
+28.0,STL Robustness,0.057692178
+28.0,Total effort (N-s),8838.328
+28.0,Optimization rounds,1.0
+28.0,Final population size,64.0
+29.0,Cost,2.3133578
+29.0,Cost gap,1.3893423
+29.0,Optimization time (s),125.52945763757452
+29.0,Compilation time (s),78.61004054686055
+29.0,STL Robustness,-1.9540957
+29.0,Total effort (N-s),6358.962
+29.0,Optimization rounds,1.0
+29.0,Final population size,64.0
+30.0,Cost,0.4837127
+30.0,Cost gap,0.34272373
+30.0,Optimization time (s),121.34226314956322
+30.0,Compilation time (s),76.03681174619123
+30.0,STL Robustness,0.019125301
+30.0,Total effort (N-s),9911.088
+30.0,Optimization rounds,1.0
+30.0,Final population size,64.0
+31.0,Cost,0.38332108
+31.0,Cost gap,0.32097387
+31.0,Optimization time (s),120.5144378747791
+31.0,Compilation time (s),78.29888073960319
+31.0,STL Robustness,0.05453676
+31.0,Total effort (N-s),8597.6045
+31.0,Optimization rounds,1.0
+31.0,Final population size,64.0
+32.0,Cost,0.7790321
+32.0,Cost gap,0.7156239
+32.0,Optimization time (s),131.22812631819397
+32.0,Compilation time (s),77.85300565464422
+32.0,STL Robustness,-0.37076762
+32.0,Total effort (N-s),8307.553
+32.0,Optimization rounds,1.0
+32.0,Final population size,64.0
+33.0,Cost,0.2905828
+33.0,Cost gap,0.24950542
+33.0,Optimization time (s),105.93131681811064
+33.0,Compilation time (s),68.4466362260282
+33.0,STL Robustness,0.061784677
+33.0,Total effort (N-s),7341.134
+33.0,Optimization rounds,1.0
+33.0,Final population size,64.0
+34.0,Cost,0.7510756
+34.0,Cost gap,0.67367864
+34.0,Optimization time (s),104.6990896272473
+34.0,Compilation time (s),68.20807025907561
+34.0,STL Robustness,-0.31329033
+34.0,Total effort (N-s),8098.943
+34.0,Optimization rounds,1.0
+34.0,Final population size,64.0
+35.0,Cost,0.32764733
+35.0,Cost gap,0.27027285
+35.0,Optimization time (s),107.57413503620774
+35.0,Compilation time (s),67.77075791731477
+35.0,STL Robustness,0.062477186
+35.0,Total effort (N-s),8056.2217
+35.0,Optimization rounds,1.0
+35.0,Final population size,64.0
+36.0,Cost,0.37118417
+36.0,Cost gap,0.29533562
+36.0,Optimization time (s),109.55910982424392
+36.0,Compilation time (s),68.86833531176671
+36.0,STL Robustness,0.05470545
+36.0,Total effort (N-s),8843.078
+36.0,Optimization rounds,1.0
+36.0,Final population size,64.0
+37.0,Cost,0.6580025
+37.0,Cost gap,0.5991216
+37.0,Optimization time (s),126.0912233791314
+37.0,Compilation time (s),70.90144896507263
+37.0,STL Robustness,-0.24016039
+37.0,Total effort (N-s),7740.515
+37.0,Optimization rounds,1.0
+37.0,Final population size,64.0
+38.0,Cost,0.32329497
+38.0,Cost gap,0.26999497
+38.0,Optimization time (s),115.77913988288492
+38.0,Compilation time (s),71.47440480161458
+38.0,STL Robustness,0.062584676
+38.0,Total effort (N-s),7982.988
+38.0,Optimization rounds,1.0
+38.0,Final population size,64.0
+39.0,Cost,0.3264305
+39.0,Cost gap,0.2675071
+39.0,Optimization time (s),124.70633309707046
+39.0,Compilation time (s),71.20796089386567
+39.0,STL Robustness,0.05821051
+39.0,Total effort (N-s),7894.3735
+39.0,Optimization rounds,1.0
+39.0,Final population size,64.0
+40.0,Cost,0.38695723
+40.0,Cost gap,0.2927678
+40.0,Optimization time (s),127.87667398573832
+40.0,Compilation time (s),82.40497178118676
+40.0,STL Robustness,0.045967095
+40.0,Total effort (N-s),8988.731
+40.0,Optimization rounds,1.0
+40.0,Final population size,64.0
+41.0,Cost,0.33745667
+41.0,Cost gap,0.27881145
+41.0,Optimization time (s),120.00271049514411
+41.0,Compilation time (s),78.52038893615827
+41.0,STL Robustness,0.060517382
+41.0,Total effort (N-s),8212.391
+41.0,Optimization rounds,1.0
+41.0,Final population size,64.0
+42.0,Cost,0.34876093
+42.0,Cost gap,0.27964225
+42.0,Optimization time (s),123.2240186277777
+42.0,Compilation time (s),70.21826322982088
+42.0,STL Robustness,0.048436727
+42.0,Total effort (N-s),8279.31
+42.0,Optimization rounds,1.0
+42.0,Final population size,64.0
+43.0,Cost,0.66186666
+43.0,Cost gap,0.56268764
+43.0,Optimization time (s),135.78437121305615
+43.0,Compilation time (s),78.65875771827996
+43.0,STL Robustness,-0.18400739
+43.0,Total effort (N-s),9023.942
+43.0,Optimization rounds,1.0
+43.0,Final population size,64.0
+44.0,Cost,0.5125491
+44.0,Cost gap,0.3233395
+44.0,Optimization time (s),116.47513343021274
+44.0,Compilation time (s),72.91001814603806
+44.0,STL Robustness,0.055462796
+44.0,Total effort (N-s),11647.783
+44.0,Optimization rounds,1.0
+44.0,Final population size,64.0
+45.0,Cost,0.40144444
+45.0,Cost gap,0.31023064
+45.0,Optimization time (s),122.80650638369843
+45.0,Compilation time (s),70.1904277568683
+45.0,STL Robustness,0.057971504
+45.0,Total effort (N-s),9382.46
+45.0,Optimization rounds,1.0
+45.0,Final population size,64.0
+46.0,Cost,0.37023786
+46.0,Cost gap,0.2901665
+46.0,Optimization time (s),120.5879898793064
+46.0,Compilation time (s),73.61519410973415
+46.0,STL Robustness,0.0531862
+46.0,Total effort (N-s),8794.513
+46.0,Optimization rounds,1.0
+46.0,Final population size,64.0
+47.0,Cost,0.36157173
+47.0,Cost gap,0.3030868
+47.0,Optimization time (s),105.41438429802656
+47.0,Compilation time (s),64.80054383398965
+47.0,STL Robustness,0.06133235
+47.0,Total effort (N-s),8538.094
+47.0,Optimization rounds,1.0
+47.0,Final population size,64.0
+48.0,Cost,0.33281565
+48.0,Cost gap,0.25400394
+48.0,Optimization time (s),109.73565542092548
+48.0,Compilation time (s),64.99021546402946
+48.0,STL Robustness,0.0546815
+48.0,Total effort (N-s),8087.8115
+48.0,Optimization rounds,1.0
+48.0,Final population size,64.0
+49.0,Cost,0.30174804
+49.0,Cost gap,0.24911416
+49.0,Optimization time (s),116.25169718079268
+49.0,Compilation time (s),76.06854374473915
+49.0,STL Robustness,0.052048285
+49.0,Total effort (N-s),7491.0405
+49.0,Optimization rounds,1.0
+49.0,Final population size,64.0
