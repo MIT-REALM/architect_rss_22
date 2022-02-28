@@ -71,12 +71,13 @@ if __name__ == "__main__":
     # Test the simulation
     t_sim = 200.0
     dt = 2.0
-    substeps = 200
+    substeps = 200 // 10
     T = int(t_sim // dt)
     start_state = jnp.array([13.0, 13.0, 3.0, 1.0, 1.0, -1.0])
     design_params = jnp.array(
         np.loadtxt(
             "logs/satellite_stl/safety_and_goal_only/design_params_opt.csv",
+            # "logs/satellite_stl/all_constraints/design_params_opt.csv",
             delimiter=",",
         )
     )
@@ -91,7 +92,8 @@ if __name__ == "__main__":
         state_trace_1[:, 2],
         label="Chaser trajectory",
     )
-    ax.plot3D([], [], [], color="grey", label="Speed-limit zone")
+    ax.plot3D([], [], [], color="darkgrey", label="Speed-limit zone")
+    # ax.plot3D([], [], [], color="peru", label="Observation zone")
     ax.plot3D(start_state[0], start_state[1], start_state[2], "ks", label="Start")
     ax.plot3D(0.0, 0.0, 0.0, "ko", label="Target")
     ax.set_xlabel("$p_x$")
@@ -102,7 +104,7 @@ if __name__ == "__main__":
     ax.set_zlim([-15, 15])
 
     # Plot sphere
-    u, v = np.mgrid[0 : 2 * np.pi : 100j, 0 : np.pi : 100j]
+    u, v = np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]
     x = 2.0 * np.cos(u) * np.sin(v)
     y = 2.0 * np.sin(u) * np.sin(v)
     z = 2.0 * np.cos(v)
@@ -110,13 +112,29 @@ if __name__ == "__main__":
         x,
         y,
         z,
-        edgecolor="grey",
-        color="grey",
-        alpha=0.1,
+        edgecolor="darkgrey",
+        color="darkgrey",
+        alpha=0.2,
         zorder=0,
         rcount=6,
         ccount=6,
     )
+
+    # u, v = np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]
+    # x = 3.0 * np.cos(u) * np.sin(v)
+    # y = 3.0 * np.sin(u) * np.sin(v)
+    # z = 3.0 * np.cos(v)
+    # ax.plot_surface(
+    #     x,
+    #     y,
+    #     z,
+    #     edgecolor="peru",
+    #     color="peru",
+    #     alpha=0.1,
+    #     zorder=0,
+    #     rcount=6,
+    #     ccount=6,
+    # )
 
     ax.legend()
 

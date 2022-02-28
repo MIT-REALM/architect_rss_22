@@ -15,7 +15,7 @@ def softnorm(x):
     return jax.lax.cond(jnp.linalg.norm(x) >= eps, jnp.linalg.norm, scaled_square, x)
 
 
-def make_sat_rendezvous_specification() -> stl.STLFormula:
+def make_sat_rendezvous_specification(mission_1: bool = False) -> stl.STLFormula:
     """Makes the STL specification for the satellite rendezvous problem.
 
     This specification captures the following requirements:
@@ -79,14 +79,16 @@ def make_sat_rendezvous_specification() -> stl.STLFormula:
     )
 
     # Combine to mission requirement
-    mission_spec = stl.STLAnd(
-        safety_constraint,
-        stl.STLAnd(
-            eventually_reach_waiting_zone_and_wait,
-            eventually_reach_target,
-            interpolate=True,
-        ),
+    mission_1_spec = stl.STLAnd(
+        safety_constraint, eventually_reach_target, interpolate=True
+    )
+    mission_2_spec = stl.STLAnd(
+        mission_1_spec,
+        eventually_reach_waiting_zone_and_wait,
         interpolate=True,
     )
 
-    return stl.STLAnd(safety_constraint, eventually_reach_target, interpolate=True)
+    if mission_1:
+        return mission_1_spec
+    else:
+        return mission_2_spec

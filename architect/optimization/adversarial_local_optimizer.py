@@ -196,7 +196,8 @@ class AdversarialLocalOptimizer(object):
 
         # Maintain a population of exogenous parameters
         exogenous_pop = self.design_problem.exogenous_params.sample(
-            prng_key, batch_size=n_init,
+            prng_key,
+            batch_size=n_init,
         )
         # exogenous_pop = exogenous_params.reshape(1, -1)
 

@@ -1,0 +1,295 @@
+seed,measurement,value
+0.0,Cost,78.286156
+0.0,Pre-adversary cost,78.00126
+0.0,Cost gap,0.24302673
+0.0,Optimization time (s),1000.005126953125
+0.0,Compilation time (s),0.0
+0.0,STL Robustness,-74.33636
+0.0,Pre-adversary STL Robustness,-74.33639
+0.0,Total effort (N-s),78158.33
+0.0,Optimization rounds,1
+0.0,Final population size,1
+0.0,Feasible,1.0
+0.0,Optimization rounds,1
+1.0,Feasible,0.0
+1.0,Optimization time (s),1000.0055847167968
+1.0,Optimization rounds,1.0
+2.0,Feasible,0.0
+2.0,Optimization time (s),1000.0032715797424
+2.0,Optimization rounds,1.0
+3.0,Feasible,0.0
+3.0,Optimization time (s),1000.0047671794892
+3.0,Optimization rounds,1.0
+4.0,Cost,78.059555
+4.0,Pre-adversary cost,77.8009
+4.0,Cost gap,0.21678162
+4.0,Optimization time (s),1000.0085377693176
+4.0,Compilation time (s),0.0
+4.0,STL Robustness,-74.335434
+4.0,Pre-adversary STL Robustness,-74.33541
+4.0,Total effort (N-s),73645.27
+4.0,Optimization rounds,1
+4.0,Final population size,1
+4.0,Feasible,1.0
+4.0,Optimization rounds,1
+5.0,Feasible,0.0
+5.0,Optimization time (s),1000.0046951770782
+5.0,Optimization rounds,1.0
+6.0,Feasible,0.0
+6.0,Optimization time (s),1000.0034770965576
+6.0,Optimization rounds,1.0
+7.0,Feasible,0.0
+7.0,Optimization time (s),1000.0066766738892
+7.0,Optimization rounds,1.0
+8.0,Feasible,0.0
+8.0,Optimization time (s),1000.0030529499054
+8.0,Optimization rounds,1.0
+9.0,Feasible,0.0
+9.0,Optimization time (s),1000.0029332637788
+9.0,Optimization rounds,1.0
+10.0,Feasible,0.0
+10.0,Optimization time (s),1000.002756357193
+10.0,Optimization rounds,1.0
+11.0,Cost,78.26246
+11.0,Pre-adversary cost,78.010345
+11.0,Cost gap,0.2102356
+11.0,Optimization time (s),1000.0146479606628
+11.0,Compilation time (s),0.0
+11.0,STL Robustness,-74.39434
+11.0,Pre-adversary STL Robustness,-74.39432
+11.0,Total effort (N-s),76525.08
+11.0,Optimization rounds,1
+11.0,Final population size,1
+11.0,Feasible,1.0
+11.0,Optimization rounds,1
+12.0,Cost,78.19956
+12.0,Pre-adversary cost,77.97121
+12.0,Cost gap,0.18656921
+12.0,Optimization time (s),1000.0066268444061
+12.0,Compilation time (s),0.0
+12.0,STL Robustness,-74.345024
+12.0,Pre-adversary STL Robustness,-74.34507
+12.0,Total effort (N-s),76255.38
+12.0,Optimization rounds,1
+12.0,Final population size,1
+12.0,Feasible,1.0
+12.0,Optimization rounds,1
+13.0,Cost,78.109604
+13.0,Pre-adversary cost,77.83934
+13.0,Cost gap,0.228508
+13.0,Optimization time (s),1000.0266964435577
+13.0,Compilation time (s),0.0
+13.0,STL Robustness,-74.39825
+13.0,Pre-adversary STL Robustness,-74.39818
+13.0,Total effort (N-s),73389.86
+13.0,Optimization rounds,1
+13.0,Final population size,1
+13.0,Feasible,1.0
+13.0,Optimization rounds,1
+14.0,Feasible,0.0
+14.0,Optimization time (s),1000.007594347
+14.0,Optimization rounds,1.0
+15.0,Feasible,0.0
+15.0,Optimization time (s),1000.0032684803008
+15.0,Optimization rounds,1.0
+16.0,Feasible,0.0
+16.0,Optimization time (s),1000.0059945583344
+16.0,Optimization rounds,1.0
+17.0,Feasible,0.0
+17.0,Optimization time (s),1000.0056822299956
+17.0,Optimization rounds,1.0
+18.0,Cost,78.25265
+18.0,Pre-adversary cost,78.00329
+18.0,Cost gap,0.20756531
+18.0,Optimization time (s),1000.0056788921356
+18.0,Compilation time (s),0.0
+18.0,STL Robustness,-74.370415
+18.0,Pre-adversary STL Robustness,-74.37036
+18.0,Total effort (N-s),76809.58
+18.0,Optimization rounds,1
+18.0,Final population size,1
+18.0,Feasible,1.0
+18.0,Optimization rounds,1
+19.0,Feasible,0.0
+19.0,Optimization time (s),1000.002289056778
+19.0,Optimization rounds,1.0
+20.0,Cost,78.5299
+20.0,Pre-adversary cost,78.340164
+20.0,Cost gap,0.14787292
+20.0,Optimization time (s),1000.0041654109955
+20.0,Compilation time (s),0.0
+20.0,STL Robustness,-74.35589
+20.0,Pre-adversary STL Robustness,-74.35592
+20.0,Total effort (N-s),82645.46
+20.0,Optimization rounds,1
+20.0,Final population size,1
+20.0,Feasible,1.0
+20.0,Optimization rounds,1
+21.0,Feasible,0.0
+21.0,Optimization time (s),1000.007213115692
+21.0,Optimization rounds,1.0
+22.0,Feasible,0.0
+22.0,Optimization time (s),1000.0057280063628
+22.0,Optimization rounds,1.0
+23.0,Feasible,0.0
+23.0,Optimization time (s),1000.0031862258912
+23.0,Optimization rounds,1.0
+24.0,Feasible,0.0
+24.0,Optimization time (s),1000.0031774044036
+24.0,Optimization rounds,1.0
+25.0,Feasible,0.0
+25.0,Optimization time (s),1000.0040559768676
+25.0,Optimization rounds,1.0
+26.0,Feasible,0.0
+26.0,Optimization time (s),1000.0039145946504
+26.0,Optimization rounds,1.0
+27.0,Feasible,0.0
+27.0,Optimization time (s),1000.0043959617616
+27.0,Optimization rounds,1.0
+28.0,Feasible,0.0
+28.0,Optimization time (s),1000.0050446987152
+28.0,Optimization rounds,1.0
+29.0,Cost,78.14099
+29.0,Pre-adversary cost,77.874596
+29.0,Cost gap,0.22464752
+29.0,Optimization time (s),1000.0100400447845
+29.0,Compilation time (s),0.0
+29.0,STL Robustness,-74.335655
+29.0,Pre-adversary STL Robustness,-74.335655
+29.0,Total effort (N-s),75271.27
+29.0,Optimization rounds,1
+29.0,Final population size,1
+29.0,Feasible,1.0
+29.0,Optimization rounds,1
+30.0,Feasible,0.0
+30.0,Optimization time (s),1000.00350356102
+30.0,Optimization rounds,1.0
+31.0,Feasible,0.0
+31.0,Optimization time (s),1000.0047383308412
+31.0,Optimization rounds,1.0
+32.0,Cost,78.10326
+32.0,Pre-adversary cost,77.84511
+32.0,Cost gap,0.21635437
+32.0,Optimization time (s),1000.0043578147888
+32.0,Compilation time (s),0.0
+32.0,STL Robustness,-74.34598
+32.0,Pre-adversary STL Robustness,-74.346
+32.0,Total effort (N-s),74310.305
+32.0,Optimization rounds,1
+32.0,Final population size,1
+32.0,Feasible,1.0
+32.0,Optimization rounds,1
+33.0,Cost,78.07126
+33.0,Pre-adversary cost,77.80797
+33.0,Cost gap,0.22142792
+33.0,Optimization time (s),1000.0078563690186
+33.0,Compilation time (s),0.0
+33.0,STL Robustness,-74.335434
+33.0,Pre-adversary STL Robustness,-74.33541
+33.0,Total effort (N-s),73879.625
+33.0,Optimization rounds,1
+33.0,Final population size,1
+33.0,Feasible,1.0
+33.0,Optimization rounds,1
+34.0,Feasible,0.0
+34.0,Optimization time (s),1000.006311416626
+34.0,Optimization rounds,1.0
+35.0,Cost,78.06576
+35.0,Pre-adversary cost,77.774704
+35.0,Cost gap,0.24920654
+35.0,Optimization time (s),1000.0062692165375
+35.0,Compilation time (s),0.0
+35.0,STL Robustness,-74.28013
+35.0,Pre-adversary STL Robustness,-74.28013
+35.0,Total effort (N-s),74875.74
+35.0,Optimization rounds,1
+35.0,Final population size,1
+35.0,Feasible,1.0
+35.0,Optimization rounds,1
+36.0,Feasible,0.0
+36.0,Optimization time (s),1000.0058720111848
+36.0,Optimization rounds,1.0
+37.0,Feasible,0.0
+37.0,Optimization time (s),1000.0116369724274
+37.0,Optimization rounds,1.0
+38.0,Cost,78.34856
+38.0,Pre-adversary cost,78.10374
+38.0,Cost gap,0.20301056
+38.0,Optimization time (s),1000.009441614151
+38.0,Compilation time (s),0.0
+38.0,STL Robustness,-74.298004
+38.0,Pre-adversary STL Robustness,-74.29803
+38.0,Total effort (N-s),80174.7
+38.0,Optimization rounds,1
+38.0,Final population size,1
+38.0,Feasible,1.0
+38.0,Optimization rounds,1
+39.0,Feasible,0.0
+39.0,Optimization time (s),1000.0256264209748
+39.0,Optimization rounds,1.0
+40.0,Feasible,0.0
+40.0,Optimization time (s),1000.0075783729552
+40.0,Optimization rounds,1.0
+41.0,Cost,78.16638
+41.0,Pre-adversary cost,77.919914
+41.0,Cost gap,0.20468903
+41.0,Optimization time (s),1000.0041110515594
+41.0,Compilation time (s),0.0
+41.0,STL Robustness,-74.35674
+41.0,Pre-adversary STL Robustness,-74.35674
+41.0,Total effort (N-s),75357.375
+41.0,Optimization rounds,1
+41.0,Final population size,1
+41.0,Feasible,1.0
+41.0,Optimization rounds,1
+42.0,Feasible,0.0
+42.0,Optimization time (s),1000.0039677619934
+42.0,Optimization rounds,1.0
+43.0,Feasible,0.0
+43.0,Optimization time (s),1000.005538225174
+43.0,Optimization rounds,1.0
+44.0,Cost,78.2551
+44.0,Pre-adversary cost,78.00085
+44.0,Cost gap,0.21248627
+44.0,Optimization time (s),1000.0150463581085
+44.0,Compilation time (s),0.0
+44.0,STL Robustness,-74.333595
+44.0,Pre-adversary STL Robustness,-74.333595
+44.0,Total effort (N-s),77594.33
+44.0,Optimization rounds,1
+44.0,Final population size,1
+44.0,Feasible,1.0
+44.0,Optimization rounds,1
+45.0,Cost,78.37778
+45.0,Pre-adversary cost,78.10898
+45.0,Cost gap,0.22705841
+45.0,Optimization time (s),1000.0184571743011
+45.0,Compilation time (s),0.0
+45.0,STL Robustness,-74.37437
+45.0,Pre-adversary STL Robustness,-74.37444
+45.0,Total effort (N-s),79232.484
+45.0,Optimization rounds,1
+45.0,Final population size,1
+45.0,Feasible,1.0
+45.0,Optimization rounds,1
+46.0,Feasible,0.0
+46.0,Optimization time (s),1000.0048379898072
+46.0,Optimization rounds,1.0
+47.0,Cost,78.14318
+47.0,Pre-adversary cost,77.90084
+47.0,Cost gap,0.2005539
+47.0,Optimization time (s),1000.0032925605774
+47.0,Compilation time (s),0.0
+47.0,STL Robustness,-74.4077
+47.0,Pre-adversary STL Robustness,-74.40777
+47.0,Total effort (N-s),73872.74
+47.0,Optimization rounds,1
+47.0,Final population size,1
+47.0,Feasible,1.0
+47.0,Optimization rounds,1
+48.0,Feasible,0.0
+48.0,Optimization time (s),1000.0042541027068
+48.0,Optimization rounds,1.0
+49.0,Feasible,0.0
+49.0,Optimization time (s),1000.0059413909912
+49.0,Optimization rounds,1.0

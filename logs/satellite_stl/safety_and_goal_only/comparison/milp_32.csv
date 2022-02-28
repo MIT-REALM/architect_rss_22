@@ -1,0 +1,12 @@
+seed,measurement,value
+32.0,Cost,7.211738
+32.0,Pre-adversary cost,77.76857
+32.0,Cost gap,-0.0
+32.0,Optimization time (s),500.0035443305969
+32.0,Compilation time (s),0.0
+32.0,STL Robustness,-13.144769
+32.0,Pre-adversary STL Robustness,-74.33965
+32.0,Total effort (N-s),105922.33
+32.0,Optimization rounds,3
+32.0,Final population size,10
+32.0,Feasible,True

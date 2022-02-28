@@ -1,5 +1,9 @@
 from math import sqrt
 import time
+import os
+import sys
+
+import pandas as pd
 
 import gurobipy as gp
 from gurobipy import GRB
@@ -50,19 +54,51 @@ def main(seed: int):
     A_LEO = 353e3  # GEO semi-major axis (m)
     M_CHASER = 500  # chaser satellite mass
     N = sqrt(MU / A_LEO ** 3)  # mean-motion parameter
-    BIGM = 1e3  # for binary logic constraints
+    BIGM = 1e4  # for binary logic constraints
+
+    A = np.array(
+        [
+            [1.0542066, 0.0, 0.0, 1.9879397, 0.3796246, 0.0],
+            [-0.00688847, 1.0, 0.0, -0.37962466, 1.9517579, 0.0],
+            [0.0, 0.0, 0.9819311, 0.0, 0.0, 1.9879396],
+            [0.05404278, 0.0, 0.0, 0.98193115, 0.37847722, 0.0],
+            [-0.01032022, 0.0, 0.0, -0.3784773, 0.92772454, 0.0],
+            [0.0, 0.0, -0.01801426, 0.0, 0.0, 0.9819312],
+        ]
+    )
+
+    B = np.array(
+        [
+            [0.00398793, 0.00050678, 0.0],
+            [-0.00050678, 0.00395173, 0.0],
+            [0.0, 0.0, 0.00398793],
+            [0.00397588, 0.00075925, 0.0],
+            [-0.00075925, 0.00390352, 0.0],
+            [0.0, 0.0, 0.00397588],
+        ]
+    )
+
+    prng_key = jax.random.PRNGKey(seed)
+
+    # Make the design problem
+    specification_weight = 2e4
+    prng_key, subkey = jax.random.split(prng_key)
+    sat_design_problem = make_sat_design_problem(
+        specification_weight, time_steps, dt, mission_1=True
+    )
 
     # Create a new model
     m = gp.Model("mission_1")
     # m.setParam(GRB.Param.OutputFlag, 0)
     m.setParam(GRB.Param.MIPGap, 1)
+    m.setParam(GRB.Param.TimeLimit, 500)
 
     # Create a trajectory optimization problem with states, reference states, control
     # inputs, and feedback matrix
     x = m.addMVar((time_steps, n_dims), lb=-100.0, ub=100.0, name="x")
     x_ref = m.addMVar((time_steps, n_dims), lb=-100.0, ub=100.0, name="x_ref")
-    u = m.addMVar((time_steps, n_controls), lb=-100.0, ub=100.0, name="u")
-    u_ref = m.addMVar((time_steps, n_controls), lb=-100.0, ub=100.0, name="u_ref")
+    u = m.addMVar((time_steps, n_controls), lb=-1000.0, ub=1000.0, name="u")
+    u_ref = m.addMVar((time_steps, n_controls), lb=-1000.0, ub=1000.0, name="u_ref")
 
     # We cannot simultaneously optimize K, so set it to be something reasonable
     K = np.array(
@@ -73,26 +109,31 @@ def main(seed: int):
         ]
     )
 
-    # Add an objective for the total impulse required for the manuever
-    impulses = [dt * L1Norm(m, [ui for ui in u[t]]) for t in range(time_steps)]
-    total_effort = sum(impulses)
-    m.setObjective(total_effort, GRB.MINIMIZE)
-
     # Initial condition constraints
-    m.addConstr(x[0, 0] == 11.5, "px_0")
-    m.addConstr(x[0, 1] == 11.5, "py_0")
-    m.addConstr(x[0, 2] == 0.0, "pz_0")
-    m.addConstr(x[0, 3] == 0.0, "vx_0")
-    m.addConstr(x[0, 4] == 0.0, "vy_0")
-    m.addConstr(x[0, 5] == 0.0, "vz_0")
+    ep = sat_design_problem.exogenous_params.sample(subkey)
+    m.addConstr(x[0, 0] == ep[0].item(), "px_0")
+    m.addConstr(x[0, 1] == ep[1].item(), "py_0")
+    m.addConstr(x[0, 2] == ep[2].item(), "pz_0")
+    m.addConstr(x[0, 3] == ep[3].item(), "vx_0")
+    m.addConstr(x[0, 4] == ep[4].item(), "vy_0")
+    m.addConstr(x[0, 5] == ep[5].item(), "vz_0")
 
     # Encode the dynamics in a simple discrete-time form
     for t in range(1, time_steps):
         # Control law
         m.addConstr(
-            u[t - 1, :] == u_ref[t - 1, :] - K @ x[t - 1, :] - K @ x_ref[t - 1, :],
+            u[t - 1, :] == u_ref[t - 1, :] - K @ x[t - 1, :] + K @ x_ref[t - 1, :],
             f"u({t})",
         )
+
+        # The linear DT dynamics are likely more accurate, but the approximate CT
+        # dyanmics are easier to handle. The CT dynamics find a feasible solution
+        # within 500 s most of the time, while the DT dynamics do not, but the solution
+        # found using CT dynamics doesn't really work since the approximation error is
+        # too high.
+
+        # # Linear discrete-time dynamics
+        # m.addConstr(x[t, :] == A @ x[t - 1, :] + B @ u[t - 1, :])
 
         # CHW dynamics
         m.addConstr(x[t, 0] == x[t - 1, 0] + dt * x[t - 1, 3], f"d(px)/dt({t})")
@@ -177,6 +218,14 @@ def main(seed: int):
     # Require that the until robustness is positive at the start of the trace
     m.addConstr(r_until[0] >= 0)
 
+    # Add an objective for the total impulse required for the manuever along with
+    # the robustness
+    impulses = [dt * L1Norm(m, [ui for ui in u[t]]) for t in range(time_steps)]
+    r_total = m.addVar(lb=-BIGM, ub=BIGM, name="r_total")
+    m.addConstr(r_total == gp.min_([r_until[0], r_f_goal[0], BIGM]))
+    total_effort = sum(impulses)
+    m.setObjective(total_effort / 2e4 - r_total, GRB.MINIMIZE)
+
     # Solve the problem
     start = time.time()
     m.optimize()
@@ -184,41 +233,104 @@ def main(seed: int):
     mip_solve_time = end - start
     print("solving MIP takes %.3f s" % (mip_solve_time))
 
-    # Extract the design parameters
-    x_ref_opt = x_ref.X
-    u_ref_opt = u_ref.X
-    planned_trajectory = np.vstack((u_ref_opt, x_ref_opt))
-    design_params_np = np.concatenate((K.reshape(-1), planned_trajectory.reshape(-1)))
-    dp_opt = jnp.array(design_params_np)
+    try:
+        # Extract the design parameters
+        x_ref_opt = x_ref.X
+        u_ref_opt = u_ref.X
+        planned_trajectory = np.hstack((u_ref_opt, x_ref_opt))
+        design_params_np = np.concatenate(
+            (K.reshape(-1), planned_trajectory.reshape(-1))
+        )
+        dp_opt = jnp.array(design_params_np)
 
-    prng_key = jax.random.PRNGKey(seed)
+        # Create the optimizer
+        ad_opt = AdversarialLocalOptimizer(sat_design_problem)
 
-    # Make the design problem
-    t_sim = 200.0
-    dt = 2.0
-    time_steps = int(t_sim // dt)
-    specification_weight = 2e4
-    prng_key, subkey = jax.random.split(prng_key)
-    sat_design_problem = make_sat_design_problem(specification_weight, time_steps, dt)
+        # Run a simulation for plotting the optimal solution with the original exogenous
+        # parameters
+        ep_opt = jnp.array([11.5, 11.5, 0, 0, 0, 0])
+        state_trace, total_effort = sat_design_problem.simulator(dp_opt, ep_opt)
 
-    # Create the optimizer
-    ad_opt = AdversarialLocalOptimizer(sat_design_problem)
+        x_opt = x.X
+        ax = plt.axes(projection="3d")
+        ax.plot3D(x_opt[:, 0], x_opt[:, 1], x_opt[:, 2])
+        ax.plot3D(state_trace[:-1, 0], state_trace[:-1, 1], state_trace[:-1, 2])
+        ax.plot3D(0.0, 0.0, 0.0, "ko")
+        ax.plot3D(x_opt[0, 0], x_opt[0, 1], x_opt[0, 2], "ks")
+        plt.show()
+        return
 
-    # Run a simulation for plotting the optimal solution with the original exogenous
-    # parameters
-    ep_opt = jnp.ndarray([11.5, 11.5, 0, 0, 0, 0])
-    state_trace, total_effort = sat_design_problem.simulator(dp_opt, ep_opt)
+        # Get the robustness of this solution
+        stl_specification = make_sat_rendezvous_specification()
+        t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
+        signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
+        original_robustness = stl_specification(signal)
 
-    # Get the robustness of this solution
-    stl_specification = make_sat_rendezvous_specification()
-    t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
-    signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
-    original_robustness = stl_specification(signal)
+        original_cost = -original_robustness[1, 0] + total_effort / specification_weight
 
-    original_cost = -original_robustness[1, 0] + total_effort / specification_weight
+        # Do the adversarial optimization
+        sat_design_problem.design_params.set_values(dp_opt)
+        sat_design_problem.exogenous_params.set_values(ep_opt)
 
-    # Do the adversarial optimization
-    sat_design_problem.design_params.set_values(dp_opt)
+        prng_key, subkey = jax.random.split(prng_key)
+        (
+            dp_opt,
+            ep_opt,
+            cost,
+            cost_gap,
+            opt_time,
+            t_jit,
+            rounds,
+            pop_size,
+        ) = ad_opt.optimize(
+            subkey,
+            disp=False,
+            rounds=10,
+            n_init=8,
+            stopping_tolerance=0.1,
+            maxiter=500,
+            jit=True,
+        )
+
+        # Run another sim to get the post-adversary robustness
+        state_trace, total_effort = sat_design_problem.simulator(dp_opt, ep_opt)
+
+        # Get the robustness of this solution
+        stl_specification = make_sat_rendezvous_specification()
+        t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
+        signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
+        robustness = stl_specification(signal)
+
+        return [
+            {"seed": seed, "measurement": "Cost", "value": cost},
+            {"seed": seed, "measurement": "Pre-adversary cost", "value": original_cost},
+            {"seed": seed, "measurement": "Cost gap", "value": cost_gap},
+            {
+                "seed": seed,
+                "measurement": "Optimization time (s)",
+                "value": mip_solve_time,
+            },
+            {"seed": seed, "measurement": "Compilation time (s)", "value": 0.0},
+            {"seed": seed, "measurement": "STL Robustness", "value": robustness[1, 0]},
+            {
+                "seed": seed,
+                "measurement": "Pre-adversary STL Robustness",
+                "value": original_robustness[1, 0],
+            },
+            {"seed": seed, "measurement": "Total effort (N-s)", "value": total_effort},
+            {"seed": seed, "measurement": "Optimization rounds", "value": rounds + 1},
+            {"seed": seed, "measurement": "Final population size", "value": pop_size},
+            {"seed": seed, "measurement": "Feasible", "value": True},
+        ]
+    except gp.GurobiError:
+        return [
+            {"seed": seed, "measurement": "Feasible", "value": False},
+            {
+                "seed": seed,
+                "measurement": "Optimization time (s)",
+                "value": mip_solve_time,
+            },
+        ]
 
     # x_opt = x.X
     # ax = plt.axes(projection="3d")
@@ -260,4 +372,19 @@ def main(seed: int):
 
 
 if __name__ == "__main__":
-    main()
+    results_df = pd.DataFrame()
+
+    seed = int(sys.argv[1])
+    print(f"Running with seed {seed}")
+
+    results = main(seed)
+    for packet in results:
+        results_df = results_df.append(packet, ignore_index=True)
+
+    # Make sure the given directory exists; create it if it does not
+    save_dir = "logs/satellite_stl/safety_and_goal_only/comparison"
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Save the results
+    filename = f"{save_dir}/milp_{seed}.csv"
+    results_df.to_csv(filename, index=False)

@@ -12,6 +12,7 @@ def make_sat_design_problem(
     specification_weight: float,
     time_steps: int,
     dt: float,
+    mission_1: bool = False,
 ) -> BoundedDesignProblem:
     """Make an instance of the multi-agent manipulation design problem.
     Uses two turtlebots.
@@ -20,6 +21,7 @@ def make_sat_design_problem(
         specification_weight: how much to weight the STL robustness in the cost
         time_steps: the number of steps to simulate
         dt: the duration of each time step
+        mission_1: if true, use the simpler mission spec
     returns:
         a BoundedDesignProblem
     """
@@ -30,7 +32,7 @@ def make_sat_design_problem(
     dp = SatDesignParameters(time_steps)
 
     # Make the STL specification
-    stl_specification = make_sat_rendezvous_specification()
+    stl_specification = make_sat_rendezvous_specification(mission_1)
     stl_specification_f = lambda trace: stl_specification(trace, smoothing=1e3)
     stl_specification_jit = jax.jit(stl_specification_f)
 
