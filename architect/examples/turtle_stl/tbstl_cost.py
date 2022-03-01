@@ -39,7 +39,7 @@ def tbstl_cost(
 
     # Get the robustness of the formula on this state trace
     t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0]).reshape(1, -1)
-    signal = jnp.vstack((t, state_trace.T))
+    signal = jnp.vstack((t, state_trace.T))  # type: ignore
     robustness = specification(signal)[1, 0]
 
     # Compute cost based on combination of STL formula robustness and control effort

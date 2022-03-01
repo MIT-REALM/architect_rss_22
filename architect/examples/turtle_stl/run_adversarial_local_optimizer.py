@@ -50,8 +50,8 @@ def run_optimizer(seed: int = 0):
 
     # Get the robustness of this solution
     stl_specification = make_tbstl_rendezvous_specification(mission_1=False)
-    t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
-    signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
+    t_range = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])  # type: ignore
+    signal = jnp.vstack((t_range.reshape(1, -1), state_trace.T))  # type: ignore
     robustness = stl_specification(signal)
 
     return [

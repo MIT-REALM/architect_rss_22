@@ -14,6 +14,11 @@ from jax._src.prng import PRNGKeyArray
 from architect.design import BoundedDesignProblem
 
 
+###################################
+# This code is NON-FUNCTIONAL
+###################################
+
+
 # Define some useful static methods to JIT compile
 @partial(jax.jit, static_argnames=["n_mutations"])
 def mutate_population(
@@ -293,7 +298,7 @@ class AdversarialLocalGeneticOptimizer(object):
         # Vectorize and compile gradient descent functions
         def wrapped_gradient_descent(
             dp: jnp.ndarray, ep: jnp.ndarray
-        ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
             return gradient_descent(
                 dp,
                 ep,
@@ -329,7 +334,7 @@ class AdversarialLocalGeneticOptimizer(object):
             # Optimize DP, downselect, crossover, and mutate
             gen_tag = f"[Generation {generation_i}][design] "
             print(gen_tag + "Starting gradient descent... ", end="", flush=True)
-            self._dp_pop, dp_costs = dp_gradient_descent_v(self._dp_pop, self._ep_pop)
+            self._dp_pop, dp_costs, _ = gradient_descent_v(self._dp_pop, self._ep_pop)
             print(f"Done; best (min) cost {dp_costs.min()}", flush=True)
 
             self._dp_pop = downselect_and_cross(
@@ -346,7 +351,7 @@ class AdversarialLocalGeneticOptimizer(object):
             # Optimize EP, downselect, crossover, and mutate
             gen_tag = f"[Generation {generation_i}][exogenous] "
             print(gen_tag + "Starting gradient descent... ", end="", flush=True)
-            self._ep_pop, ep_costs = ep_gradient_descent_v(self._ep_pop, self._dp_pop)
+            self._ep_pop, ep_costs, _ = gradient_descent_v(self._dp_pop, self._ep_pop)
             print(f"Done; best (max) cost {ep_costs.max()}", flush=True)
 
             self._ep_pop = downselect_and_cross(

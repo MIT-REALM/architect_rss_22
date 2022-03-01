@@ -16,7 +16,7 @@ class TBSTLExogenousParameters(BoundedExogenousParameters):
             [
                 [-1.55, -1.45],  # px
                 [-1.55, -1.45],  # py
-                [jnp.pi / 2 - 0.01, jnp.pi / 2 + 0.01],   # theta
+                [jnp.pi / 2 - 0.01, jnp.pi / 2 + 0.01],  # theta
             ]
         )
 

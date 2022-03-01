@@ -1,6 +1,4 @@
 """Define a simulator for the satellite"""
-from typing import Tuple
-
 import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -16,7 +14,7 @@ def sat_simulate_high_res(
     time_steps: int,
     dt: float,
     substeps: int,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> jnp.ndarray:
     """Simulate the performance of the satellite rendezvous system.
 
     To make this function pure, we need to pass in all sources of randomness used.
@@ -34,9 +32,7 @@ def sat_simulate_high_res(
         dt: the duration of each time step
         substeps: how many smaller updates to break this interval into
     returns:
-        a tuple of
-            - the state trace in a (time_steps, 6) array
-            - the total expended actuation effort (sum of 1-norm scaled by dt)
+        - the state trace in a (time_steps, 6) array
     """
     # Extract design parameters
     K = design_params[: 6 * 3].reshape(3, 6)
@@ -104,7 +100,7 @@ if __name__ == "__main__":
     ax.set_zlim([-15, 15])
 
     # Plot sphere
-    u, v = np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]
+    u, v = np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]  # type: ignore
     x = 2.0 * np.cos(u) * np.sin(v)
     y = 2.0 * np.sin(u) * np.sin(v)
     z = 2.0 * np.cos(v)

@@ -13,9 +13,7 @@ class TBSTLDesignParameters(BoundedDesignParameters):
         # Make an array of names
         n_controls = 2
         names = [
-            f"u_ref_{i}({t})"
-            for t in range(time_steps)
-            for i in range(n_controls)
+            f"u_ref_{i}({t})" for t in range(time_steps) for i in range(n_controls)
         ]
         n_params = time_steps * n_controls
 

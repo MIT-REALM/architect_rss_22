@@ -16,7 +16,7 @@ N = jnp.sqrt(MU / A_LEO ** 3)  # mean-motion parameter
 
 
 @jax.jit
-def linear_satellite_dt_AB(dt: float) -> Tuple[jnp.ndarray]:
+def linear_satellite_dt_AB(dt: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
     # Define continuous-time A and B matrices
     A = jnp.zeros((6, 6))
     A = A.at[0, 3].set(1.0)
@@ -36,9 +36,9 @@ def linear_satellite_dt_AB(dt: float) -> Tuple[jnp.ndarray]:
     M = jnp.zeros((9, 9))
     M = M.at[:6, :6].set(A)
     M = M.at[:6, 6:].set(B)
-    F = jax.scipy.linalg.expm(dt * M)
-    A_dt = F[:6, :6]
-    B_dt = F[:6, 6:]
+    F = jax.scipy.linalg.expm(dt * M)  # type: ignore
+    A_dt: jnp.ndarray = F[:6, :6]
+    B_dt: jnp.ndarray = F[:6, 6:]
 
     return A_dt, B_dt
 

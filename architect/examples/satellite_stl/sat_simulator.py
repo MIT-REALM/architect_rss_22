@@ -176,11 +176,11 @@ if __name__ == "__main__":
         ]
     )
     planned_trajectory = jnp.zeros((T, 9))
-    design_params = jnp.concatenate((K.reshape(-1), planned_trajectory.reshape(-1)))
+    dps = jnp.concatenate((K.reshape(-1), planned_trajectory.reshape(-1)))
 
     # Burn-in once to activate JIT (if using)
-    state_trace_ct, effort = sat_simulate(design_params, start_state, T, dt, substeps)
-    state_trace_dt, effort = sat_simulate_dt(design_params, start_state, T, dt)
+    state_trace_ct, effort = sat_simulate(dps, start_state, T, dt, substeps)
+    state_trace_dt, effort = sat_simulate_dt(dps, start_state, T, dt)
 
     ax = plt.axes(projection="3d")
     ax.plot3D(state_trace_ct[:, 0], state_trace_ct[:, 1], state_trace_ct[:, 2])
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     sim_time = 0.0
     for _ in range(N_tests):
         start = time.perf_counter()
-        state_trace, _ = sat_simulate(design_params, start_state, T, dt, substeps)
+        state_trace, _ = sat_simulate(dps, start_state, T, dt, substeps)  # type: ignore
         end = time.perf_counter()
         sim_time += end - start
 
@@ -201,7 +201,7 @@ if __name__ == "__main__":
     sim_time = 0.0
     for _ in range(N_tests):
         start = time.perf_counter()
-        state_trace, _ = sat_simulate_dt(design_params, start_state, T, dt)
+        state_trace, _ = sat_simulate_dt(dps, start_state, T, dt)  # type: ignore
         end = time.perf_counter()
         sim_time += end - start
 
@@ -211,5 +211,5 @@ if __name__ == "__main__":
 
     # # Test vectorizing
     # sim_trace_v, effort_v = jax.vmap(sat_simulate_dt, (0, None, None, None))(
-    #     jnp.tile(design_params.reshape(1, -1), (2, 1)), start_state, T, dt
+    #     jnp.tile(dps.reshape(1, -1), (2, 1)), start_state, T, dt
     # )

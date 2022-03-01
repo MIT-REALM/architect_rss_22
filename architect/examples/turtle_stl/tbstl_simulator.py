@@ -1,6 +1,5 @@
 """Define a simulator for the satellite"""
 import time  # noqa
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
@@ -18,7 +17,7 @@ def tbstl_simulate_dt(
     exogenous_sample: jnp.ndarray,
     time_steps: int,
     dt: float,
-) -> Tuple[jnp.ndarray, jnp.ndarray]:
+) -> jnp.ndarray:
     """Simulate the performance of the satellite rendezvous system.
 
     To make this function pure, we need to pass in all sources of randomness used.
@@ -31,8 +30,7 @@ def tbstl_simulate_dt(
         time_steps: the number of steps to simulate
         dt: the duration of each time step
     returns:
-        a tuple of
-            - the state trace in a (time_steps, 3) array
+        the state trace in a (time_steps, 3) array
     """
     # To enable easier JIT, this simulation will be implemented as a scan.
     # This requires creating an array with the reference states and controls
@@ -95,9 +93,7 @@ if __name__ == "__main__":
     state_trace_dt = tbstl_simulate_dt(planned_trajectory, start_state, T, dt)
 
     ax = plt.axes()
-    ax.plot(
-        state_trace_dt[:, 0], state_trace_dt[:, 1], "r", label="Trajectory"
-    )
+    ax.plot(state_trace_dt[:, 0], state_trace_dt[:, 1], "r", label="Trajectory")
     ax.plot(start_state[0], start_state[1], "ko", label="Start")
 
     # Plot rings for mission spec

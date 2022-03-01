@@ -2,7 +2,7 @@
 Optimizes a design to achieve minimal cost, regularized by the variance of the cost
 """
 import time
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -11,6 +11,9 @@ import numpy as np
 import scipy.optimize as sciopt
 
 from architect.design import BoundedDesignProblem
+
+
+ndarray = Union[jnp.ndarray, np.ndarray]
 
 
 class AdversarialLocalOptimizer(object):
@@ -44,7 +47,7 @@ class AdversarialLocalOptimizer(object):
 
     def compile_cost_dp(
         self, prng_key: PRNGKeyArray, jit: bool = True
-    ) -> Callable[[np.ndarray, np.ndarray], Tuple[float, np.ndarray]]:
+    ) -> Callable[[ndarray, ndarray], Tuple[float, np.ndarray]]:
         """Compile the cost function for the design parameters (to minimize cost)
 
         args:
@@ -68,8 +71,8 @@ class AdversarialLocalOptimizer(object):
 
         # Wrap in numpy access and take the mean
         def cost_and_grad_np(
-            design_params_np: np.ndarray, exogenous_params_np: np.ndarray
-        ):
+            design_params_np: ndarray, exogenous_params_np: ndarray
+        ) -> Tuple[float, np.ndarray]:
             # Manually batch to avoid re-jitting
             exogenous_params = jnp.array(exogenous_params_np).reshape(
                 -1, exogenous_params_np.shape[-1]
@@ -92,7 +95,7 @@ class AdversarialLocalOptimizer(object):
 
     def compile_cost_ep(
         self, prng_key: PRNGKeyArray, jit: bool = True
-    ) -> Callable[[np.ndarray], Tuple[float, np.ndarray]]:
+    ) -> Callable[[ndarray, ndarray], Tuple[float, np.ndarray]]:
         """Compile the cost function for the exogenous parameters (to maximize cost)
 
         args:
@@ -116,8 +119,8 @@ class AdversarialLocalOptimizer(object):
 
         # Wrap in numpy access
         def cost_and_grad_np(
-            design_params_np: np.ndarray, exogenous_params_np: np.ndarray
-        ):
+            design_params_np: ndarray, exogenous_params_np: ndarray
+        ) -> Tuple[float, np.ndarray]:
             cost, grad = cost_and_grad(
                 jnp.array(design_params_np), jnp.array(exogenous_params_np)
             )
@@ -136,7 +139,9 @@ class AdversarialLocalOptimizer(object):
         n_init: int = 4,
         stopping_tolerance: float = 0.1,
         jit: bool = True,
-    ) -> Tuple[bool, str, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    ) -> Tuple[
+        jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray, float, float, int, int
+    ]:
         """Optimize the design problem, starting with the initial values stored in
         self.design_problem.design_params.
 
@@ -243,7 +248,7 @@ class AdversarialLocalOptimizer(object):
             # Otherwise, extract the result and add it to the population
             exogenous_params = np.array(ep_result.x)
             exogenous_pop = jnp.vstack((exogenous_pop, exogenous_params))
-            # print(f"[Round {i}]: Optimized exogenous params, cost {ep_result.fun:.4f}")
+            # print(f"[Round {i}]: Opt. exogenous params, cost {ep_result.fun:.4f}")
 
         # print(f"Overall, optimization took {total_time:.4f} s")
 

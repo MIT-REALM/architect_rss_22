@@ -51,7 +51,7 @@ def run_optimizer(seed: int = 0):
     # Get the robustness of this solution
     stl_specification = make_sat_rendezvous_specification()
     t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
-    signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
+    signal = jnp.vstack((t.reshape(1, -1), state_trace.T))  # type: ignore
     robustness = stl_specification(signal)
 
     return [
