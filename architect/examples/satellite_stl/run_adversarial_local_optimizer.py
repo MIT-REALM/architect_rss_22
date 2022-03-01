@@ -1,12 +1,9 @@
 import os
 import sys
-import time
 
 import pandas as pd
 import jax
 import jax.numpy as jnp
-
-import matplotlib.pyplot as plt
 
 from architect.optimization import (
     AdversarialLocalOptimizer,
@@ -47,12 +44,6 @@ def run_optimizer(seed: int = 0):
         maxiter=500,
         jit=True,
     )
-    # end = time.perf_counter()
-    # jnp.set_printoptions(threshold=sys.maxsize)
-    # print(f"Optimal design parameters:\n{dp_opt}")
-    # print(f"Optimal exogenous parameters:\n{ep_opt}")
-    # print(f"Optimal cost: {cost}")
-    # print(f"Optimization took {end - start} s.")
 
     # Run a simulation for plotting the optimal solution
     state_trace, total_effort = sat_design_problem.simulator(dp_opt, ep_opt)
@@ -62,53 +53,6 @@ def run_optimizer(seed: int = 0):
     t = jnp.linspace(0.0, time_steps * dt, state_trace.shape[0])
     signal = jnp.vstack((t.reshape(1, -1), state_trace.T))
     robustness = stl_specification(signal)
-
-    # # Plot the results
-    # fig = plt.figure(figsize=plt.figaspect(0.5))
-    # # Trajectory in state space
-    # state_ax = fig.add_subplot(2, 2, 1, projection="3d")
-    # state_ax.plot3D(state_trace[:, 0], state_trace[:, 1], state_trace[:, 2])
-    # state_ax.plot3D(0.0, 0.0, 0.0, "ko")
-    # state_ax.set_title(f"Rendezvous. Total effort: {total_effort}")
-    # print(f"Rendezvous. Total effort: {total_effort:.2f}")
-
-    # fig = plt.figure(figsize=plt.figaspect(0.5))
-    # # Trajectory in state space
-    # state_ax = fig.add_subplot(1, 1, 1, projection="3d")
-    # state_ax.plot3D(
-    #     state_trace[:, 0],
-    #     state_trace[:, 1],
-    #     state_trace[:, 2],
-    #     label="Chaser trajectory",
-    # )
-    # state_ax.plot3D(0.0, 0.0, 0.0, "ko", label="Target")
-    # state_ax.legend()
-    # # state_ax.set_title(f"Rendezvous. Total effort: {total_effort}")
-    # print(f"Rendezvous. Total effort: {total_effort:.2f}")
-    # plt.show()
-
-    # # Robustness trace over time
-    # rob_ax = fig.add_subplot(2, 2, 2)
-    # rob_ax.plot(robustness[0], robustness[1])
-    # rob_ax.set_xlabel("t")
-    # rob_ax.set_ylabel("STL Robustness")
-    # rob_ax.set_title(f"Robustness at start: {robustness[1, 0]}")
-    # print(f"Robustness at start: {robustness[1, 0]:.4f}")
-
-    # # Plot distance and speed on the same axis to see if safety constraints are met
-    # fig = plt.figure(figsize=plt.figaspect(0.5))
-    # safety_ax = fig.add_subplot(1, 1, 1)
-    # safety_ax.plot(t, jnp.linalg.norm(state_trace[:, :3], axis=-1), color="blue")
-    # safety_ax.plot(t, 0 * t, "k-")
-    # safety_ax.plot(t, 0 * t + 2.0, "b:")
-    # # safety_ax.set_ylim([0.0, 10.0])
-    # safety_ax = safety_ax.twinx()
-    # safety_ax.plot(t, jnp.linalg.norm(state_trace[:, 3:], axis=-1), color="red")
-    # safety_ax.plot(t, 0 * t + 0.1, "r:")
-
-    # safety_ax.legend()
-    # safety_ax.set_xlabel("t")
-    # plt.show()
 
     return [
         {"seed": seed, "measurement": "Cost", "value": cost},

@@ -8,7 +8,6 @@ import pandas as pd
 import gurobipy as gp
 from gurobipy import GRB
 
-import matplotlib.pyplot as plt
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -56,27 +55,27 @@ def main(seed: int):
     N = sqrt(MU / A_LEO ** 3)  # mean-motion parameter
     BIGM = 1e4  # for binary logic constraints
 
-    A = np.array(
-        [
-            [1.0542066, 0.0, 0.0, 1.9879397, 0.3796246, 0.0],
-            [-0.00688847, 1.0, 0.0, -0.37962466, 1.9517579, 0.0],
-            [0.0, 0.0, 0.9819311, 0.0, 0.0, 1.9879396],
-            [0.05404278, 0.0, 0.0, 0.98193115, 0.37847722, 0.0],
-            [-0.01032022, 0.0, 0.0, -0.3784773, 0.92772454, 0.0],
-            [0.0, 0.0, -0.01801426, 0.0, 0.0, 0.9819312],
-        ]
-    )
+    # A = np.array(
+    #     [
+    #         [1.0542066, 0.0, 0.0, 1.9879397, 0.3796246, 0.0],
+    #         [-0.00688847, 1.0, 0.0, -0.37962466, 1.9517579, 0.0],
+    #         [0.0, 0.0, 0.9819311, 0.0, 0.0, 1.9879396],
+    #         [0.05404278, 0.0, 0.0, 0.98193115, 0.37847722, 0.0],
+    #         [-0.01032022, 0.0, 0.0, -0.3784773, 0.92772454, 0.0],
+    #         [0.0, 0.0, -0.01801426, 0.0, 0.0, 0.9819312],
+    #     ]
+    # )
 
-    B = np.array(
-        [
-            [0.00398793, 0.00050678, 0.0],
-            [-0.00050678, 0.00395173, 0.0],
-            [0.0, 0.0, 0.00398793],
-            [0.00397588, 0.00075925, 0.0],
-            [-0.00075925, 0.00390352, 0.0],
-            [0.0, 0.0, 0.00397588],
-        ]
-    )
+    # B = np.array(
+    #     [
+    #         [0.00398793, 0.00050678, 0.0],
+    #         [-0.00050678, 0.00395173, 0.0],
+    #         [0.0, 0.0, 0.00398793],
+    #         [0.00397588, 0.00075925, 0.0],
+    #         [-0.00075925, 0.00390352, 0.0],
+    #         [0.0, 0.0, 0.00397588],
+    #     ]
+    # )
 
     prng_key = jax.random.PRNGKey(seed)
 
@@ -250,15 +249,6 @@ def main(seed: int):
         # parameters
         ep_opt = jnp.array([11.5, 11.5, 0, 0, 0, 0])
         state_trace, total_effort = sat_design_problem.simulator(dp_opt, ep_opt)
-
-        x_opt = x.X
-        ax = plt.axes(projection="3d")
-        ax.plot3D(x_opt[:, 0], x_opt[:, 1], x_opt[:, 2])
-        ax.plot3D(state_trace[:-1, 0], state_trace[:-1, 1], state_trace[:-1, 2])
-        ax.plot3D(0.0, 0.0, 0.0, "ko")
-        ax.plot3D(x_opt[0, 0], x_opt[0, 1], x_opt[0, 2], "ks")
-        plt.show()
-        return
 
         # Get the robustness of this solution
         stl_specification = make_sat_rendezvous_specification()

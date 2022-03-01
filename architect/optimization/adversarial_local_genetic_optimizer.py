@@ -7,7 +7,7 @@ import time
 from typing import Callable, Tuple
 
 import jax
-from jax.nn import logsumexp, softmax
+from jax.nn import softmax
 import jax.numpy as jnp
 from jax._src.prng import PRNGKeyArray
 
