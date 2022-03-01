@@ -14,7 +14,7 @@ class TBSTLExogenousParameters(BoundedExogenousParameters):
         names = ["px0", "py0", "theta0"]
         bounds = jnp.array(
             [
-                [-1.55, -1.45],  # px
+                [-1.25, -1.15],  # px
                 [-1.55, -1.45],  # py
                 [jnp.pi / 2 - 0.01, jnp.pi / 2 + 0.01],  # theta
             ]
