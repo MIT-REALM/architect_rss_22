@@ -186,13 +186,13 @@ class AdversarialLocalOptimizer(object):
         f_ep(design_params, exogenous_params)
         jit_end = time.perf_counter()
         jit_time = jit_end - jit_start
-        # print(
-        #     (
-        #         f"JIT took {jit_time:.4f} s "
-        #         f"({dp_jit_end - jit_start:.4f} s for dp, "
-        #         f"{jit_end - dp_jit_end:.4f} s for ep)"
-        #     )
-        # )
+        print(
+            (
+                f"JIT took {jit_time:.4f} s "
+                f"({dp_jit_end - jit_start:.4f} s for dp, "
+                f"{jit_end - dp_jit_end:.4f} s for ep)"
+            )
+        )
 
         # Maintain a population of exogenous parameters
         exogenous_pop = self.design_problem.exogenous_params.sample(
@@ -219,7 +219,7 @@ class AdversarialLocalOptimizer(object):
             design_params = np.array(dp_result.x)
             dp_cost, _ = f_ep(design_params, exogenous_params)
             # print(f"[Round {i}]: Optimized design params, dp_cost {dp_cost:.4f}")
-            # print(f"[Round {i}]: Optimizing dp took {dp_end - dp_start:.4f} s")
+            print(f"[Round {i}]: Optimizing dp took {dp_end - dp_start:.4f} s")
 
             # Then maximize the cost by changing the exogenous parameters
             ep_start = time.perf_counter()
