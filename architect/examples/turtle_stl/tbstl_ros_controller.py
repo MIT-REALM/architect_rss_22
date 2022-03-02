@@ -101,7 +101,7 @@ class TBSTLROSController(object):
 
         save_dir = "logs/turtle_stl/all_constraints/hw"
         os.makedirs(save_dir, exist_ok=True)
-        filename = f"{save_dir}/tbst_ros_controller_log.csv"
+        filename = f"{save_dir}/tbstl_ros_controller_log.csv"
         self.log_df.to_csv(filename)
 
     def step(self) -> None:
