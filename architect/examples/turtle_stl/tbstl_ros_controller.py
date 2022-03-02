@@ -8,6 +8,7 @@ import tf
 from tf.transformations import euler_from_quaternion
 
 import jax.numpy as jnp
+import numpy as np
 import pandas as pd
 
 from architect.components.geometry.transforms_2d import rotation_matrix_2d
@@ -37,7 +38,7 @@ class TBSTLROSController(object):
 
         # create transform listener to get turtlebot transform from odometry
         self.listener = tf.TransformListener()
-        self.odom_frame = "/odom"
+        self.odom_frame = "turtle1/odom"
 
         # create a publisher node to send velocity commands to turtlebot
         self.command_publisher = rospy.Publisher(
@@ -49,13 +50,13 @@ class TBSTLROSController(object):
 
         # Find the coordinate conversion from the turtlebot to the ground truth frame
         # First try one frame name, and if that doesn't work try another one.
-        self.base_frame = "base_footprint"
+        self.base_frame = "turtle1/base_footprint"
         try:
             self.listener.waitForTransform(
                 self.odom_frame, self.base_frame, rospy.Time(), rospy.Duration(1.0)
             )
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
-            self.base_frame = "base_link"
+            self.base_frame = "turtle1/base_link"
 
         try:
             self.listener.waitForTransform(
@@ -171,12 +172,15 @@ class TBSTLROSController(object):
 
 def main():
     # Initialize a controller and run it
-    # # Initial
-    # design_params = jnp.array([0.5, 0.1, -2.0, 0.0, -0.1, 0.0])
-    # Optimized
-    design_params = jnp.array([2.535058, 0.09306894, -1.6945883, -1.0, 0.0, -0.8280163])
+    design_params = jnp.array(
+        np.loadtxt(
+            "logs/turtle_stl/all_constraints/solutions/counterexample_guided_0.csv",
+            delimiter=",",
+        )
+    )
     dt = 0.1
     controller = TBSTLROSController(design_params, dt)
+    print("Controller initialized")
 
     while not rospy.is_shutdown():
         controller.step()
