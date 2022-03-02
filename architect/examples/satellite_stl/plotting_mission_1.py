@@ -54,14 +54,39 @@ def plot_comparison_mission_1():
     fig = plt.figure(tight_layout=True, figsize=plt.figaspect(0.5))
     gs = gridspec.GridSpec(3, 2)
 
-    rob_ax1 = fig.add_subplot(gs[:, 0])
+    rob_ax1 = fig.add_subplot(gs[:2, 0])
+    rob_ax2 = fig.add_subplot(gs[2, 0])
     mask = results_df.measurement == "STL Robustness"
     sns.boxplot(x="method", y="value", data=results_df[mask], linewidth=1, ax=rob_ax1)
+    sns.boxplot(x="method", y="value", data=results_df[mask], linewidth=1, ax=rob_ax2)
 
-    rob_ax1.set_title("STL Robustness")
-    rob_ax1.set_ylabel("")
+    rob_ax1.set_ylabel("STL Robustness")
     rob_ax1.set_xlabel("")
-    rob_ax1.set_ylim([-10, 1.0])
+    rob_ax1.set_ylim([-5, 1.0])
+    rob_ax2.set_ylabel("")
+    rob_ax2.set_xlabel("")
+    rob_ax2.set_ylim([-20, -8])
+
+    # hide the spines between ax1 and ax2
+    rob_ax1.spines.bottom.set_visible(False)
+    rob_ax1.axes.get_xaxis().set_visible(False)
+    rob_ax1.tick_params(labeltop=False)  # don't put tick labels at the top
+    rob_ax2.spines.top.set_visible(False)
+    rob_ax2.xaxis.tick_bottom()
+
+    # Make broken axis marks
+    d = 0.5  # proportion of vertical to horizontal extent of the slanted line
+    kwargs = dict(
+        marker=[(-1, -d), (1, d)],
+        markersize=24,
+        linestyle="none",
+        color="silver",
+        mec="silver",
+        mew=2,
+        clip_on=False,
+    )
+    rob_ax1.plot([0, 1], [0, 0], transform=rob_ax1.transAxes, **kwargs)
+    rob_ax2.plot([0, 1], [1, 1], transform=rob_ax2.transAxes, **kwargs)
 
     # Plot optimization time
     time_ax1 = fig.add_subplot(gs[0, 1])
@@ -71,8 +96,7 @@ def plot_comparison_mission_1():
     sns.boxplot(x="method", y="value", data=results_df[mask], linewidth=1, ax=time_ax1)
     sns.boxplot(x="method", y="value", data=results_df[mask], linewidth=1, ax=time_ax2)
 
-    time_ax1.set_title("Optimization time (s)")
-    time_ax1.set_ylabel("")
+    time_ax1.set_ylabel("Optimization time (s)")
     time_ax1.set_xlabel("")
     time_ax1.set_ylim([475, 550])
     time_ax2.set_title("")
