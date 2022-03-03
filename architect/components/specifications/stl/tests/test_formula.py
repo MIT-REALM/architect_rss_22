@@ -103,7 +103,7 @@ def test_STLAnd():
     r = p_and(signal, smoothing=1e6)
 
     # Check shapes
-    assert r.shape[1] == signal.shape[1] * 4
+    assert r.shape[1] == signal.shape[1] * 2
     assert r.shape[0] == 2
 
     # Check semantics
@@ -129,10 +129,10 @@ def test_STLAnd():
     # Get robustness
     r = p_and(signal, smoothing=1e6)
 
-    # The and operator runs max1d, which quadruples the length of the signal.
+    # The and operator runs max1d, which doubles the length of the signal.
     # Could be simpler, but needs to be constant in order to be compatible with
     # vmap and grad
-    assert r.shape[1] == signal.shape[1] * 4
+    assert r.shape[1] == signal.shape[1] * 2
 
 
 def test_STLOr():
@@ -184,7 +184,7 @@ def test_STLImplies():
     r = p(signal)
 
     # Check shapes
-    assert r.shape[1] == signal.shape[1] * 4
+    assert r.shape[1] == signal.shape[1] * 2
     assert r.shape[0] == 2
 
     # Check semantics. Make use of the fact that (A -> B) <-> ((not A) or B)

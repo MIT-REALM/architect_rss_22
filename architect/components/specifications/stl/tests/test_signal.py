@@ -82,19 +82,10 @@ def test_max1d_grad():
     max_sum_grad_f = jax.grad(max_sum_f)
     max_sum_grad = max_sum_grad_f(x2)
 
-    import matplotlib.pyplot as plt
-
-    signal = max1d(signal1, jnp.vstack((t, x2)), smoothing)
-    plt.plot(signal[0], signal[1])
-    plt.show()
-
     assert max_sum_grad.shape == x2.shape
     # With large smoothing constant, the max should not depend on x2 at the first
     # element (where x1 is bigger), but it should depend on x2 at the last element
     # (where x2 is bigger)
-    import pdb
-
-    pdb.set_trace()
     assert jnp.isclose(max_sum_grad[0], 0.0)
     assert jnp.isclose(max_sum_grad[-1], 1.0)
 

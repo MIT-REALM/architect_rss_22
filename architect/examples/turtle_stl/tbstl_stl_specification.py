@@ -56,7 +56,7 @@ def make_tbstl_rendezvous_specification(mission_1: bool = False) -> stl.STLFormu
 
     # Reach the waiting zone stay there for the specified interval
     stay_inside_waiting_zone = stl.STLTimedAlways(
-        stl.STLAnd(p_inside_max_radius, p_outside_min_radius),
+        stl.STLAnd(p_inside_max_radius, p_outside_min_radius, interpolate=True),
         0.0,
         min_time_in_waiting_zone,
     )
