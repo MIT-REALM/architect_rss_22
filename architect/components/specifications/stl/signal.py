@@ -1,6 +1,5 @@
 """Defines a notion of discrete-time signals used by STL specifications"""
 from functools import partial
-from typing import Optional
 
 import jax
 import jax.numpy as jnp
@@ -8,42 +7,26 @@ from jax.nn import logsumexp
 
 
 @jax.jit
-def stack(
-    signal_1: jnp.ndarray, signal_2: jnp.ndarray, common_tsteps: Optional[int] = None
-) -> jnp.ndarray:
+def stack(signal_1: jnp.ndarray, signal_2: jnp.ndarray) -> jnp.ndarray:
     """Stack the given signals into a single signal
 
     If the given signals do not have the same time indices, they will be linearly
     interpolated at all times in the union of their time indices.
 
-    Output will have the same number of samples as the largest input signal.
+    Output will have the same number of samples as the first input signal.
 
     args:
         signal_1, signal_2: jnp arrays where the first row contains the timestamps
             and subsequent rows contain the sampled values. Samples are grouped by
             column
     """
-    # Get the union of time indices
-    new_t = jnp.array([]).reshape(-1)
-    size = signal_1.shape[1] + signal_2.shape[1]
-    new_t = jnp.union1d(new_t, signal_1[0], size=size)
-    new_t = jnp.union1d(new_t, signal_2[0], size=size)
-
-    new_t = jnp.sort(new_t)
-
-    # Get the signal values by interpolating at the new time indices
-    new_n = signal_1.shape[0] + signal_2.shape[0] - 2
-    new_T = new_t.shape[0]
-    new_x = jnp.zeros((new_n, new_T))
-    current_idx = 0
-    for i in range(1, signal_1.shape[0]):
-        new_x = new_x.at[current_idx].set(jnp.interp(new_t, signal_1[0], signal_1[i]))
-        current_idx += 1
+    # Interpolate the second signal to match the first signal
+    new_s = jnp.zeros((signal_2.shape[0], signal_1.shape[1]))
+    new_s = new_s.at[0].set(signal_1[0])
     for i in range(1, signal_2.shape[0]):
-        new_x = new_x.at[current_idx].set(jnp.interp(new_t, signal_2[0], signal_2[i]))
-        current_idx += 1
+        new_s = new_s.at[i].set(jnp.interp(signal_1[0], signal_2[0], signal_2[i]))
 
-    stacked_signal = jnp.vstack((new_t.reshape(1, -1), new_x))
+    stacked_signal = jnp.vstack((signal_1, new_s[1:]))
 
     return stacked_signal
 

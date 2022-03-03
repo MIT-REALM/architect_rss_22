@@ -459,8 +459,6 @@ class STLTimedEventually(STLFormula):
             # Run this through a smoothed max
             return 1 / smoothing * logsumexp(smoothing * masked_robustness)
 
-        masked_soft_max(child_r[0, -10])
-
         # vmap this masked maximum function over the time range we're interested in
         robustness = jax.vmap(masked_soft_max)(child_r[0])
 

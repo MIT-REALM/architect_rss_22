@@ -16,7 +16,7 @@ def test_stack():
     signal = stack(signal1, signal2)
 
     assert signal.shape[0] == 2 + 1  # 1 time row and 2 signal rows
-    assert signal.shape[1] == t1.size + t2.size
+    assert signal.shape[1] == t1.size
 
 
 def test_stack_grad():
@@ -45,7 +45,7 @@ def test_stack_vmap():
     stack_f = lambda x: stack(signal1, jnp.vstack((t2, x)))
     stacked_x_vmap = jax.vmap(stack_f, in_axes=0)(jnp.vstack([x2] * 2))
 
-    assert stacked_x_vmap.shape == (2, 3, t1.size + t2.size)
+    assert stacked_x_vmap.shape == (2, 3, t1.size)
 
 
 def test_max1d():
@@ -60,7 +60,7 @@ def test_max1d():
     signal = max1d(signal1, signal2, smoothing)
 
     assert signal.shape[0] == 2
-    assert signal.shape[1] == 4 * t.size  # stacking doubles the length, as does max1d
+    assert signal.shape[1] == 2 * t.size  # max1d doubles the length
 
     signal2_max_mask = signal[0] >= 0.5
     signal1_max_mask = signal[0] < 0.5
@@ -76,27 +76,38 @@ def test_max1d_grad():
     signal1 = jnp.vstack((t, x1))
 
     smoothing = 1e6
-    max_sum_f = lambda x: max1d(signal1, jnp.vstack((t, x)), smoothing)[1].sum()
+    max_sum_f = lambda x: max1d(
+        signal1, jnp.vstack((t, x)), smoothing, interpolate=False
+    )[1].sum()
     max_sum_grad_f = jax.grad(max_sum_f)
     max_sum_grad = max_sum_grad_f(x2)
+
+    import matplotlib.pyplot as plt
+
+    signal = max1d(signal1, jnp.vstack((t, x2)), smoothing)
+    plt.plot(signal[0], signal[1])
+    plt.show()
 
     assert max_sum_grad.shape == x2.shape
     # With large smoothing constant, the max should not depend on x2 at the first
     # element (where x1 is bigger), but it should depend on x2 at the last element
     # (where x2 is bigger)
+    import pdb
+
+    pdb.set_trace()
     assert jnp.isclose(max_sum_grad[0], 0.0)
     assert jnp.isclose(max_sum_grad[-1], 1.0)
 
 
-def test_max1d_vmap():
-    # Create two signals to test
-    t = jnp.arange(0.0, 3.0, 0.3)
-    x1 = 0.5 - t
-    x2 = 0.0 * t
-    signal1 = jnp.vstack((t, x1))
+# def test_max1d_vmap():
+#     # Create two signals to test
+#     t = jnp.arange(0.0, 3.0, 0.3)
+#     x1 = 0.5 - t
+#     x2 = 0.0 * t
+#     signal1 = jnp.vstack((t, x1))
 
-    smoothing = 1e6
-    max_sum_f = lambda x: max1d(signal1, jnp.vstack((t, x)), smoothing)[1].sum()
-    max_sum_vmap = jax.vmap(max_sum_f, in_axes=0)(jnp.vstack([x2] * 3))
+#     smoothing = 1e6
+#     max_sum_f = lambda x: max1d(signal1, jnp.vstack((t, x)), smoothing)[1].sum()
+#     max_sum_vmap = jax.vmap(max_sum_f, in_axes=0)(jnp.vstack([x2] * 3))
 
-    assert max_sum_vmap.size == 3
+#     assert max_sum_vmap.size == 3

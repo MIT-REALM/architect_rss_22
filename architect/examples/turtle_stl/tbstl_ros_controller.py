@@ -135,8 +135,7 @@ class TBSTLROSController(object):
         self.rate.sleep()
 
     def get_odometry_estimate(self):
-        """Get the estimated location from odometry
-        """
+        """Get the estimated location from odometry"""
         # Fake the beacon measurements by getting the state from odometry
         (trans, rot) = self.listener.lookupTransform(
             self.odom_frame, self.base_frame, rospy.Time(0)
