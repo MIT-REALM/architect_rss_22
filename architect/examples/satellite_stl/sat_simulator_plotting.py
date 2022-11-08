@@ -2,6 +2,8 @@
 import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from celluloid import Camera
+from tqdm import tqdm
 
 from architect.components.dynamics.linear_satellite import (
     linear_satellite_next_state_substeps,
@@ -69,69 +71,101 @@ if __name__ == "__main__":
     dt = 2.0
     substeps = 200 // 10
     T = int(t_sim // dt)
-    start_state = jnp.array([13.0, 13.0, 3.0, 1.0, 1.0, -1.0])
+    start = jnp.array([13.0, 13.0, 3.0, 1.0, 1.0, -1.0])
     design_params = jnp.array(
         np.loadtxt(
-            "logs/satellite_stl/safety_and_goal_only/design_params_opt.csv",
-            # "logs/satellite_stl/all_constraints/design_params_opt.csv",
+            # "logs/satellite_stl/safety_and_goal_only/design_params_opt.csv",
+            "logs/satellite_stl/all_constraints/design_params_opt.csv",
             delimiter=",",
         )
     )
 
     # Burn-in once to activate JIT (if using)
-    state_trace_1 = sat_simulate_high_res(design_params, start_state, T, dt, substeps)
+    state_trace_1 = sat_simulate_high_res(design_params, start, T, dt, substeps)
 
     ax = plt.axes(projection="3d")
-    ax.plot3D(
-        state_trace_1[:, 0],
-        state_trace_1[:, 1],
-        state_trace_1[:, 2],
-        label="Chaser trajectory",
-    )
-    ax.plot3D([], [], [], color="darkgrey", label="Speed-limit zone")
-    # ax.plot3D([], [], [], color="peru", label="Observation zone")
-    ax.plot3D(start_state[0], start_state[1], start_state[2], "ks", label="Start")
-    ax.plot3D(0.0, 0.0, 0.0, "ko", label="Target")
-    ax.set_xlabel("$p_x$")
-    ax.set_ylabel("$p_y$")
-    ax.set_zlabel("$p_z$")
-    ax.set_xlim([-15, 15])
-    ax.set_ylim([-15, 15])
-    ax.set_zlim([-15, 15])
 
-    # Plot sphere
-    u, v = np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]  # type: ignore
-    x = 2.0 * np.cos(u) * np.sin(v)
-    y = 2.0 * np.sin(u) * np.sin(v)
-    z = 2.0 * np.cos(v)
-    ax.plot_surface(
-        x,
-        y,
-        z,
-        edgecolor="darkgrey",
-        color="darkgrey",
-        alpha=0.2,
-        zorder=0,
-        rcount=6,
-        ccount=6,
-    )
+    # Start the animation recording
+    camera = Camera(plt.gcf())
 
-    # u, v = np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]
-    # x = 3.0 * np.cos(u) * np.sin(v)
-    # y = 3.0 * np.sin(u) * np.sin(v)
-    # z = 3.0 * np.cos(v)
-    # ax.plot_surface(
-    #     x,
-    #     y,
-    #     z,
-    #     edgecolor="peru",
-    #     color="peru",
-    #     alpha=0.1,
-    #     zorder=0,
-    #     rcount=6,
-    #     ccount=6,
-    # )
+    n_frames = 0
+    for i in tqdm(range(0, state_trace_1.shape[0], substeps)):
+        # # refresh legend if needed
+        # if ax.get_legend() is not None:
+        #     ax.get_legend().remove()
 
-    ax.legend()
+        ax.plot3D(
+            state_trace_1[:i, 0],
+            state_trace_1[:i, 1],
+            state_trace_1[:i, 2],
+            label="Chaser trajectory",
+            color="blue",
+        )
+        ax.plot3D([], [], [], color="darkgrey", label="Speed-limit zone")
+        ax.plot3D([], [], [], color="peru", label="Observation zone")
+        ax.plot3D(
+            state_trace_1[i, 0],
+            state_trace_1[i, 1],
+            state_trace_1[i, 2],
+            "ks",
+            label="Chaser",
+            markersize=6,
+        )
+        ax.plot3D(0.0, 0.0, 0.0, "ko", label="Target", markersize=6)
+        ax.set_xlabel("$p_x$")
+        ax.set_ylabel("$p_y$")
+        ax.set_zlabel("$p_z$")
+        ax.set_xlim([-18, 18])
+        ax.set_ylim([-18, 18])
+        ax.set_zlim([-18, 18])
 
-    plt.show()
+        # Plot sphere
+        u, v = (
+            np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]  # type: ignore
+        )
+        x = 2.0 * np.cos(u) * np.sin(v)
+        y = 2.0 * np.sin(u) * np.sin(v)
+        z = 2.0 * np.cos(v)
+        ax.plot_surface(
+            x,
+            y,
+            z,
+            edgecolor="darkgrey",
+            color="darkgrey",
+            alpha=0.2,
+            zorder=0,
+            rcount=6,
+            ccount=6,
+        )
+
+        u, v = (
+            np.mgrid[0 : 2 * np.pi : 100j, np.pi / 2 : np.pi / 2 : 100j]  # type: ignore
+        )
+        x = 3.0 * np.cos(u) * np.sin(v)
+        y = 3.0 * np.sin(u) * np.sin(v)
+        z = 3.0 * np.cos(v)
+        ax.plot_surface(
+            x,
+            y,
+            z,
+            edgecolor="peru",
+            color="peru",
+            alpha=0.1,
+            zorder=0,
+            rcount=6,
+            ccount=6,
+        )
+
+        # ax.legend(loc="upper right", prop={"size": 16})
+        ax.view_init(elev=40.0, azim=130)
+        plt.gcf().set_size_inches(12, 12)
+        camera.snap()
+        n_frames += 1
+        # if n_frames > 20:
+        #     plt.show()
+
+    # Create the animation
+    animation_length = 10.0  # seconds
+    ms_per_frame = animation_length * 1000 / n_frames
+    animation = camera.animate(interval=ms_per_frame)
+    animation.save("sat_mission_2.gif")
