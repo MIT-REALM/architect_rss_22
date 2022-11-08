@@ -1,5 +1,8 @@
 # Project-specific
-animation.gif
+*.gif
+
+# Editor stuff
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
