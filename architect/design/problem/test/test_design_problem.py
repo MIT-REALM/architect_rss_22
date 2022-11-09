@@ -1,4 +1,8 @@
-from architect.design import DesignProblem, DesignParameters, ExogenousParameters
+from architect.design.problem import (
+    DesignProblem,
+    DesignParameters,
+    ExogenousParameters,
+)
 
 
 def test_DesignProblem_init():

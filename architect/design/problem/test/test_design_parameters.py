@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import numpy as np
 
-from architect.design import DesignParameters
+from architect.design.problem import DesignParameters
 
 
 def test_DesignParameters_init():

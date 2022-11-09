@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from architect.optimization import (
+from architect.design.optimization import (
     AdversarialLocalOptimizer,
 )
 from architect.examples.turtle_stl.tbstl_design_problem import (

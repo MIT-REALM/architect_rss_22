@@ -18,7 +18,7 @@ from architect.components.sensing.compass import (
     compass_measurements,
     compass_measurement_lin,
 )
-from architect.design import DesignParameters
+from architect.design.problem import DesignParameters
 
 from architect.examples.agv_localization.agv_exogenous_parameters import (
     AGVExogenousParameters,

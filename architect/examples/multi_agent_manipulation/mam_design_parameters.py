@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from jax._src.prng import PRNGKeyArray
 
-from architect.design import DesignParameters
+from architect.design.problem import DesignParameters
 
 
 class MAMDesignParameters(DesignParameters):

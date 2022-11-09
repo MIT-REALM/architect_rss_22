@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import arviz as az
 import matplotlib.pyplot as plt
 
-from architect.analysis import WorstCaseCostAnalyzer
+from architect.design.analysis import WorstCaseCostAnalyzer
 from architect.examples.agv_localization.agv_design_problem import (
     make_agv_localization_design_problem_analysis,
 )

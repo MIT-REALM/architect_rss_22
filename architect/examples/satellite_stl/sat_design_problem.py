@@ -1,6 +1,6 @@
 import jax
 
-from architect.design import BoundedDesignProblem
+from architect.design.problem import BoundedDesignProblem
 from .sat_cost import sat_cost
 from .sat_design_parameters import SatDesignParameters
 from .sat_exogenous_parameters import SatExogenousParameters

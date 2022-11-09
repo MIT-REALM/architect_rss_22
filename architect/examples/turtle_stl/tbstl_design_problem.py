@@ -1,6 +1,6 @@
 import jax
 
-from architect.design import BoundedDesignProblem
+from architect.design.problem import BoundedDesignProblem
 from .tbstl_cost import tbstl_cost
 from .tbstl_design_parameters import TBSTLDesignParameters
 from .tbstl_exogenous_parameters import TBSTLExogenousParameters

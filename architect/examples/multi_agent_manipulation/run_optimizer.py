@@ -5,7 +5,7 @@ import jax.numpy as jnp
 
 import matplotlib.pyplot as plt
 
-from architect.optimization import (
+from architect.design.optimization import (
     VarianceRegularizedOptimizerAD,
     VarianceRegularizedOptimizerCMA,
 )

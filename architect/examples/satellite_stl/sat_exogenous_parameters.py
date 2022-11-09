@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-from architect.design import BoundedExogenousParameters
+from architect.design.problem import BoundedExogenousParameters
 
 
 class SatExogenousParameters(BoundedExogenousParameters):

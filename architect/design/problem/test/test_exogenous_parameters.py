@@ -1,6 +1,6 @@
 import jax
 
-from architect.design import ExogenousParameters
+from architect.design.problem import ExogenousParameters
 
 
 def test_ExogenousParameters_init():

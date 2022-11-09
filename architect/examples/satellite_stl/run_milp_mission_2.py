@@ -13,7 +13,7 @@ import jax
 import jax.numpy as jnp
 
 
-from architect.optimization import (
+from architect.design.optimization import (
     AdversarialLocalOptimizer,
 )
 from architect.examples.satellite_stl.sat_design_problem import (

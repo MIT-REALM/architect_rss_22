@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-from architect.design import BoundedDesignParameters
+from architect.design.problem import BoundedDesignParameters
 
 
 class SatDesignParameters(BoundedDesignParameters):

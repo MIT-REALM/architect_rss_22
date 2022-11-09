@@ -10,7 +10,7 @@ import pymc3 as pm
 from pymc3.distributions.dist_math import bound
 import theano.tensor as tt
 
-from architect.design import DesignProblem
+from architect.design.problem import DesignProblem
 
 
 class SensitivityAnalyzer(object):

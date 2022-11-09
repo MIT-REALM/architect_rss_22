@@ -1,8 +1,12 @@
 import jax
 import jax.numpy as jnp
 
-from architect.design import DesignProblem, DesignParameters, ExogenousParameters
-from architect.optimization import VarianceRegularizedOptimizerAD
+from architect.design.problem import (
+    DesignProblem,
+    DesignParameters,
+    ExogenousParameters,
+)
+from architect.design.optimization import VarianceRegularizedOptimizerAD
 
 
 def create_test_design_problem(simple=True):

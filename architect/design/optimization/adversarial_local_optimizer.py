@@ -10,7 +10,7 @@ from jax._src.prng import PRNGKeyArray
 import numpy as np
 import scipy.optimize as sciopt
 
-from architect.design import BoundedDesignProblem
+from architect.design.problem import BoundedDesignProblem
 
 
 ndarray = Union[jnp.ndarray, np.ndarray]

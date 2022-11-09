@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from jax._src.prng import PRNGKeyArray
 
-from architect.design import DesignProblem
+from architect.design.problem import DesignProblem
 from .mam_cost import mam_cost_push_two_turtles
 from .mam_design_parameters import MAMDesignParameters
 from .mam_exogenous_parameters import MAMExogenousParameters

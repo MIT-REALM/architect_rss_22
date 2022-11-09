@@ -1,6 +1,6 @@
 from typing import Sequence, Tuple, Optional
 
-from architect.design import DesignParameters
+from architect.design.problem import DesignParameters
 
 
 class AGVDesignParameters(DesignParameters):

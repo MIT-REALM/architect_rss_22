@@ -5,7 +5,7 @@ import pandas as pd
 import jax
 import jax.numpy as jnp
 
-from architect.optimization import (
+from architect.design.optimization import (
     AdversarialLocalOptimizer,
 )
 from architect.examples.satellite_stl.sat_design_problem import (
@@ -38,8 +38,8 @@ def run_optimizer(seed: int = 0):
     dp_opt, ep_opt, cost, cost_gap, opt_time, t_jit, rounds, pop_size = ad_opt.optimize(
         subkey,
         disp=False,
-        rounds=1,
-        n_init=1,
+        rounds=10,
+        n_init=8,
         stopping_tolerance=0.1,
         maxiter=500,
         jit=True,
@@ -75,6 +75,8 @@ if __name__ == "__main__":
     results = run_optimizer(seed)
     for packet in results:
         results_df = results_df.append(packet, ignore_index=True)
+
+    print(results_df)
 
     # Make sure the given directory exists; create it if it does not
     save_dir = "logs/satellite_stl/all_constraints/comparison"

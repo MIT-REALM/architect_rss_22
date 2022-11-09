@@ -6,7 +6,7 @@ import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 
-from architect.analysis import WorstCaseCostAnalyzer
+from architect.design.analysis import WorstCaseCostAnalyzer
 from architect.examples.multi_agent_manipulation.mam_design_problem import (
     make_mam_design_problem,
 )

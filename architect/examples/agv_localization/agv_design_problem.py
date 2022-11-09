@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-from architect.design import DesignProblem
+from architect.design.problem import DesignProblem
 from .agv_cost import agv_cost, agv_max_estimation_error
 from .agv_design_parameters import AGVDesignParameters
 from .agv_exogenous_parameters import AGVExogenousParameters

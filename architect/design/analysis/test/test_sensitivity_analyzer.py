@@ -1,8 +1,12 @@
 import jax
 import jax.numpy as jnp
 
-from architect.design import DesignProblem, DesignParameters, ExogenousParameters
-from architect.analysis import SensitivityAnalyzer
+from architect.design.problem import (
+    DesignProblem,
+    DesignParameters,
+    ExogenousParameters,
+)
+from architect.design.analysis import SensitivityAnalyzer
 
 
 def create_test_design_problem():

@@ -6,7 +6,7 @@ import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 
-from architect.analysis import SensitivityAnalyzer
+from architect.design.analysis import SensitivityAnalyzer
 from architect.examples.multi_agent_manipulation.mam_design_problem import (
     make_mam_design_problem,
     make_mam_design_problem_friction_only,
